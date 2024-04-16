@@ -18,7 +18,8 @@ def tokenize_function(tokenizer, examples):
     return tokenizer(examples["text"], truncation=True, padding="max_length")
 
 def get_bert_base_uncased(device):
-    tl_model = HookedTransformer.from_pretrained('bert-base-uncased')
+    tl_model = HookedTransformer.from_pretrained('bert-base-cased', fold_ln=False)
+    tl_model = tl_model.to(device)
     tl_model.set_use_attn_result(True)
     tl_model.set_use_split_qkv_input(True)
     if "use_hook_mlp_in" in tl_model.cfg.to_dict():
@@ -32,7 +33,7 @@ def get_all_text_entailment_things(num_examples, device, metric_name, kl_return_
     dataset_name = "andres-vs/ruletaker-Att-Noneg-depth0"
     # as you do sentence classification in this task, I used a classification model instead of an autoregressive one
     model_name = "bert-base-uncased"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     dataset = load_dataset(dataset_name)
     test_size = len(dataset["test"])
@@ -42,15 +43,24 @@ def get_all_text_entailment_things(num_examples, device, metric_name, kl_return_
         raise ValueError("num_examples cannot exceed half of the test split size.")
     
     examples = examples.map(remove_special_tokens)
-    tokenized_examples = examples.map(lambda x: tokenize_function(tokenizer, x), batched=True)
-    validation_data = tokenized_examples[:num_examples]["input_ids"].to(device)
-    validation_labels = tokenized_examples[:num_examples]["label"].to(device)
-    test_data = tokenized_examples[num_examples:]["input_ids"].to(device)
-    test_labels = tokenized_examples[num_examples:]["label"].to(device)
+    # tokenized_examples = examples.map(lambda x: tokenize_function(tokenizer, x), batched=True)
+    # print(tokenized_examples)
+    validation_data = examples[:num_examples]["input"]
+    validation_labels = examples[:num_examples]["label"]
+    test_data = examples[num_examples:]["input"]
+    test_labels = examples[num_examples:]["label"]
 
     # nog niet zeker of dit werkt en hoe het werkt
+    # tokenized_examples_formatted = tokenized_examples["input_ids", "attention_mask"]
+    print(examples)
     with torch.no_grad():
-        base_model_logits = tl_model(tokenized_examples)[:, -1, :]
+        batch_size = 1
+        base_model_logits = []
+        for i in range(0, len(examples["input"]), batch_size):
+            batch_inputs = examples["input"][i:i+batch_size]
+            logits = tl_model(batch_inputs)[:, -1, :]
+            base_model_logits.append(logits)
+        base_model_logits = torch.cat(base_model_logits, dim=0)
         base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
