@@ -3,7 +3,7 @@ from acdc.docstring.utils import AllDataThings
 from acdc.acdc_utils import kl_divergence
 import torch
 import torch.nn.functional as F
-from transformer_lens.HookedTransformer import HookedTransformer
+from transformer_lens.HookedEncoder import HookedEncoder
 
 from huggingface_hub import login
 from datasets import load_dataset
@@ -19,13 +19,13 @@ def tokenize_function(tokenizer, examples):
     return tokenizer(examples["text"], truncation=True, padding="max_length")
 
 def get_bert_base_uncased(device):
-    tl_model = HookedTransformer.from_pretrained('bert-base-cased', fold_ln=False)
+    tl_model = HookedEncoder.from_pretrained('bert-base-cased') #, fold_ln=False)
     tl_model = tl_model.to(device)
-    tl_model.set_use_attn_result(True)
-    tl_model.set_use_split_qkv_input(True)
-    if "use_hook_mlp_in" in tl_model.cfg.to_dict():
-        tl_model.set_use_hook_mlp_in(True)
-    return tl_model
+    # tl_model.set_use_attn_result(True)
+    # tl_model.set_use_split_qkv_input(True)
+    # if "use_hook_mlp_in" in tl_model.cfg.to_dict():
+    #     tl_model.set_use_hook_mlp_in(True)
+    # return tl_model
 
 def invert_query(query):
     if 'not' in query:
@@ -79,12 +79,16 @@ def get_all_text_entailment_things(num_examples, device, metric_name, kl_return_
 
     # nog niet zeker of dit werkt en hoe het werkt
     # tokenized_examples_formatted = tokenized_examples["input_ids", "attention_mask"]
+    tokenized_examples = tokenize_function(tl_model.tokenizer, examples)
     with torch.no_grad():
         batch_size = 8
         base_model_logits = []
-        for i in tqdm(range(0, len(examples["input"]), batch_size)):
-            batch_inputs = examples["input"][i:i+batch_size]
-            logits = tl_model(batch_inputs)[:, -1, :]
+        for i in tqdm(range(0, len(tokenized_examples["input_ids"]), batch_size)):
+            batch_inputs = {
+                "input_ids": torch.tensor(tokenized_examples["input_ids"][i:i+batch_size]),
+                "attention_mask": torch.tensor(tokenized_examples["attention_mask"][i:i+batch_size])
+            }
+            logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])[:, -1, :]
             base_model_logits.append(logits)
         base_model_logits = torch.cat(base_model_logits, dim=0)
         base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
