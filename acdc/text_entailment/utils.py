@@ -23,8 +23,9 @@ def get_bert_base_uncased(device):
     tl_model = tl_model.to(device)
     # tl_model.set_use_attn_result(True)
     # tl_model.set_use_split_qkv_input(True)
-    # if "use_hook_mlp_in" in tl_model.cfg.to_dict():
-    #     tl_model.set_use_hook_mlp_in(True)
+    print(tl_model.cfg.to_dict())
+    if "use_hook_mlp_in" in tl_model.cfg.to_dict():
+        tl_model.set_use_hook_mlp_in(True)
     # return tl_model
 
 def invert_query(query):
