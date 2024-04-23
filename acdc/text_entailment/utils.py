@@ -4,6 +4,7 @@ from acdc.acdc_utils import kl_divergence
 import torch
 import torch.nn.functional as F
 from transformer_lens.HookedEncoder import HookedEncoder
+from transformers import AutoTokenizer
 
 from huggingface_hub import login
 from datasets import load_dataset
@@ -18,15 +19,16 @@ def remove_special_tokens(example):
 def tokenize_function(tokenizer, examples):
     return tokenizer(examples["text"], truncation=True, padding="max_length")
 
-def get_bert_base_uncased(device):
-    tl_model = HookedEncoder.from_pretrained('bert-base-cased') #, fold_ln=False)
+def get_finetuned_bert_model(model_name, device):
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer) #, fold_ln=False)
     tl_model = tl_model.to(device)
     # tl_model.set_use_attn_result(True)
     # tl_model.set_use_split_qkv_input(True)
     # print(tl_model.cfg.to_dict())
     # if "use_hook_mlp_in" in tl_model.cfg.to_dict():
     #     tl_model.set_use_hook_mlp_in(True)
-    # return tl_model
+    return tl_model
 
 def invert_query(query):
     if 'not' in query:
@@ -53,8 +55,8 @@ def generate_corrupt_examples(examples):
         labels.append(not example['label'])
     return Dataset.from_dict({'input': inputs, 'label': labels})
 
-def get_all_text_entailment_things(num_examples, device, metric_name, kl_return_one_element=True):
-    tl_model=get_bert_base_uncased(device)
+def get_all_text_entailment_things(model_name, num_examples, device, metric_name, kl_return_one_element=True):
+    tl_model=get_finetuned_bert_model(model_name, device)
 
     login(token="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", add_to_git_credential=True)
     dataset_name = "andres-vs/ruletaker-Att-Noneg-depth0"
