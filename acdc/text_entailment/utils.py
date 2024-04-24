@@ -14,10 +14,10 @@ from tqdm import tqdm
 
 def remove_special_tokens(example):
     example['input'] = example['input'].replace('[CLS]', '')
-    return {'text': example['input'], 'label': example['label']}
+    return {'input': example['input'], 'label': example['label']}
 
 def tokenize_function(tokenizer, examples):
-    return tokenizer(examples["text"], truncation=True, padding="max_length")
+    return tokenizer(examples["input"], truncation=True, padding="max_length")
 
 def get_finetuned_bert_model(model_name, device):
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
@@ -83,11 +83,23 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     # test_data = examples[num_examples:]["input"]
     # test_patch_data = corrupted_examples[num_examples:]["input"]
     # test_labels = examples[num_examples:]["label"]
-    validation_data = tokenized_examples["input_ids", "attention_mask"][:num_examples]
-    validation_patch_data = tokenized_corrupted_examples["input_ids", "attention_mask"][:num_examples]
+    validation_data = {
+                "input_ids": torch.tensor(tokenized_examples["input_ids"][:num_examples]),
+                "attention_mask": torch.tensor(tokenized_examples["attention_mask"][:num_examples])
+            }
+    validation_patch_data = {
+                "input_ids": torch.tensor(tokenized_corrupted_examples["input_ids"][:num_examples]),
+                "attention_mask": torch.tensor(tokenized_corrupted_examples["attention_mask"][:num_examples])
+            }
     validation_labels = examples[:num_examples]["label"]
-    test_data = tokenized_examples["input_ids", "attention_mask"][num_examples:]
-    test_patch_data = tokenized_corrupted_examples["input_ids", "attention_mask"][num_examples:]
+    test_data = {
+                "input_ids": torch.tensor(tokenized_examples["input_ids"][num_examples:]),
+                "attention_mask": torch.tensor(tokenized_examples["attention_mask"][num_examples:])
+            }
+    test_patch_data = {
+                "input_ids": torch.tensor(tokenized_corrupted_examples["input_ids"][num_examples:]),
+                "attention_mask": torch.tensor(tokenized_corrupted_examples["attention_mask"][num_examples:])
+            }
     test_labels = examples[num_examples:]["label"]
 
     # nog niet zeker of dit werkt en hoe het werkt
