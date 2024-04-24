@@ -83,23 +83,11 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     # test_data = examples[num_examples:]["input"]
     # test_patch_data = corrupted_examples[num_examples:]["input"]
     # test_labels = examples[num_examples:]["label"]
-    validation_data = {
-                "input_ids": torch.tensor(tokenized_examples["input_ids"][:num_examples]),
-                "attention_mask": torch.tensor(tokenized_examples["attention_mask"][:num_examples])
-            }
-    validation_patch_data = {
-                "input_ids": torch.tensor(tokenized_corrupted_examples["input_ids"][:num_examples]),
-                "attention_mask": torch.tensor(tokenized_corrupted_examples["attention_mask"][:num_examples])
-            }
+    validation_data = torch.tensor(tokenized_examples["input_ids"][:num_examples])
+    validation_patch_data = torch.tensor(tokenized_corrupted_examples["input_ids"][:num_examples])
     validation_labels = examples[:num_examples]["label"]
-    test_data = {
-                "input_ids": torch.tensor(tokenized_examples["input_ids"][num_examples:]),
-                "attention_mask": torch.tensor(tokenized_examples["attention_mask"][num_examples:])
-            }
-    test_patch_data = {
-                "input_ids": torch.tensor(tokenized_corrupted_examples["input_ids"][num_examples:]),
-                "attention_mask": torch.tensor(tokenized_corrupted_examples["attention_mask"][num_examples:])
-            }
+    test_data = torch.tensor(tokenized_examples["input_ids"][num_examples:])
+    test_patch_data = torch.tensor(tokenized_corrupted_examples["input_ids"][num_examples:])
     test_labels = examples[num_examples:]["label"]
 
     # nog niet zeker of dit werkt en hoe het werkt
