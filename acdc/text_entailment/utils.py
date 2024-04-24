@@ -72,17 +72,26 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     
     examples = examples.map(remove_special_tokens)
     corrupted_examples = generate_corrupt_examples(examples)
+
     
-    validation_data = examples[:num_examples]["input"]
-    validation_patch_data = corrupted_examples[:num_examples]["input"]
+    tokenized_examples = tokenize_function(tl_model.tokenizer, examples)
+    tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples)
+    
+    # validation_data = examples[:num_examples]["input"]
+    # validation_patch_data = corrupted_examples[:num_examples]["input"]
+    # validation_labels = examples[:num_examples]["label"]
+    # test_data = examples[num_examples:]["input"]
+    # test_patch_data = corrupted_examples[num_examples:]["input"]
+    # test_labels = examples[num_examples:]["label"]
+    validation_data = tokenized_examples["input_ids", "attention_mask"][:num_examples]
+    validation_patch_data = tokenized_corrupted_examples["input_ids", "attention_mask"][:num_examples]
     validation_labels = examples[:num_examples]["label"]
-    test_data = examples[num_examples:]["input"]
-    test_patch_data = corrupted_examples[num_examples:]["input"]
+    test_data = tokenized_examples["input_ids", "attention_mask"][num_examples:]
+    test_patch_data = tokenized_corrupted_examples["input_ids", "attention_mask"][num_examples:]
     test_labels = examples[num_examples:]["label"]
 
     # nog niet zeker of dit werkt en hoe het werkt
     # tokenized_examples_formatted = tokenized_examples["input_ids", "attention_mask"]
-    tokenized_examples = tokenize_function(tl_model.tokenizer, examples)
     with torch.no_grad():
         batch_size = 8
         base_model_logits = []
