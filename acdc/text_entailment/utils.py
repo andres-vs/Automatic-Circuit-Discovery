@@ -72,7 +72,6 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     
     examples = examples.map(remove_special_tokens)
     corrupted_examples = generate_corrupt_examples(examples)
-
     
     tokenized_examples = tokenize_function(tl_model.tokenizer, examples)
     tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples)
@@ -84,14 +83,15 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     # test_patch_data = corrupted_examples[num_examples:]["input"]
     # test_labels = examples[num_examples:]["label"]
     validation_data = torch.tensor(tokenized_examples["input_ids"][:num_examples])
+    valdiation_mask = torch.tensor(tokenized_examples["attention_mask"][:num_examples])
     validation_patch_data = torch.tensor(tokenized_corrupted_examples["input_ids"][:num_examples])
     validation_labels = examples[:num_examples]["label"]
     test_data = torch.tensor(tokenized_examples["input_ids"][num_examples:])
+    test_mask = torch.tensor(tokenized_examples["attention_mask"][num_examples:])
     test_patch_data = torch.tensor(tokenized_corrupted_examples["input_ids"][num_examples:])
     test_labels = examples[num_examples:]["label"]
 
-    # nog niet zeker of dit werkt en hoe het werkt
-    # tokenized_examples_formatted = tokenized_examples["input_ids", "attention_mask"]
+
     with torch.no_grad():
         batch_size = 8
         base_model_logits = []
@@ -102,10 +102,13 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
             }
             logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])[:, -1, :]
             base_model_logits.append(logits)
+            del batch_inputs
+            del logits
         base_model_logits = torch.cat(base_model_logits, dim=0)
         base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
+    wait = input("(calculated base model logprobs) Press Enter to continue.")
 
     if metric_name == "kl_div":
         validation_metric = partial(
@@ -130,11 +133,11 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
         validation_metric=validation_metric,
         validation_data=validation_data,
         validation_labels=validation_labels,
-        validation_mask=None,
+        validation_mask=valdiation_mask,
         validation_patch_data=validation_patch_data,
         test_metrics=test_metrics,
         test_data=test_data,
         test_labels=test_labels,
-        test_mask=None,
+        test_mask=test_mask,
         test_patch_data=test_patch_data,
     )
