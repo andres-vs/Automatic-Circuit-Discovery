@@ -92,23 +92,30 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     test_labels = examples[num_examples:]["label"]
 
 
-    with torch.no_grad():
-        batch_size = 8
-        base_model_logits = []
-        for i in tqdm(range(0, len(tokenized_examples["input_ids"]), batch_size)):
-            batch_inputs = {
-                "input_ids": torch.tensor(tokenized_examples["input_ids"][i:i+batch_size]),
-                "attention_mask": torch.tensor(tokenized_examples["attention_mask"][i:i+batch_size])
-            }
+    
+    batch_size = 8
+    base_model_logits = []
+    for i in tqdm(range(0, len(tokenized_examples["input_ids"]), batch_size)):
+        batch_inputs = {
+            "input_ids": torch.tensor(tokenized_examples["input_ids"][i:i+batch_size]),
+            "attention_mask": torch.tensor(tokenized_examples["attention_mask"][i:i+batch_size])
+        }
+        with torch.no_grad():
             logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])[:, -1, :]
-            base_model_logits.append(logits)
-            del batch_inputs
-            del logits
-        base_model_logits = torch.cat(base_model_logits, dim=0)
-        base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
+        base_model_logits.append(logits)
+        del batch_inputs
+        del logits
+    wait = input("(calculated base model logits) Press Enter to continue.")
+    base_model_logits = torch.cat(base_model_logits, dim=0)
+    wait = input("(recalculated base model logprobs) Press Enter to continue.")
+    base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
+    wait = input("(calculated base model logprobs) Press Enter to continue.")
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
-    wait = input("(calculated base model logprobs) Press Enter to continue.")
+    wait = input("(derived validation and test logprobs) Press Enter to continue.")
+    del base_model_logits
+    del base_model_logprobs
+    wait = input("(deleted logits and logprob vars) Press Enter to continue.")
 
     if metric_name == "kl_div":
         validation_metric = partial(
