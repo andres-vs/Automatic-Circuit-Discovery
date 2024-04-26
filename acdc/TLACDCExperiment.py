@@ -7,6 +7,7 @@ from typing import Callable, Optional, Literal, List, Dict, Any, Tuple, Union, S
 import random
 from dataclasses import dataclass
 import torch
+from tqdm import tqdm
 from acdc.acdc_graphics import show
 from torch import nn
 from torch.nn import functional as F
@@ -444,7 +445,14 @@ class TLACDCExperiment:
                 scramble_positions,
             )
         self.model.cache_all(self.global_cache.corrupted_cache)
-        corrupt_stuff = self.model(self.ref_ds)
+        batch_size = 8  # Set your desired batch size
+        corrupt_stuff = []
+        for i in tqdm(range(0, len(self.ref_ds), batch_size)):
+            batch = self.ref_ds[i:i+batch_size]
+            batch_corrupt_stuff = self.model(batch)
+            print(batch_corrupt_stuff)
+            corrupt_stuff.append(batch_corrupt_stuff)
+        corrupt_stuff = torch.cat(corrupt_stuff, dim=0)
 
         if self.verbose:
             print("Done corrupting things")
