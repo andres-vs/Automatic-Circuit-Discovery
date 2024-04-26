@@ -202,7 +202,8 @@ class TLACDCExperiment:
             logits = []
             for i in tqdm(range(0, len(self.ref_ds), batch_size)):
                 batch = self.ds[i:i+batch_size]
-                batch_logits = self.model(batch)
+                with torch.no_grad():
+                    batch_logits = self.model(batch)
                 logits.append(batch_logits)
                 del batch, batch_logits
                 gc.collect()
@@ -460,7 +461,8 @@ class TLACDCExperiment:
         batch_size = 8  # Set your desired batch size
         for i in tqdm(range(0, len(self.ref_ds), batch_size)):
             batch = self.ref_ds[i:i+batch_size]
-            batch_corrupt_stuff = self.model(batch)
+            with torch.no_grad():
+                batch_corrupt_stuff = self.model(batch)
             del batch, batch_corrupt_stuff
             gc.collect()
             torch.cuda.empty_cache()
