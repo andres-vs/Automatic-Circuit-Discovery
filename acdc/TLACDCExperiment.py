@@ -450,8 +450,11 @@ class TLACDCExperiment:
         for i in tqdm(range(0, len(self.ref_ds), batch_size)):
             batch = self.ref_ds[i:i+batch_size]
             batch_corrupt_stuff = self.model(batch)
-            print(batch_corrupt_stuff)
+            # print(batch_corrupt_stuff)
             corrupt_stuff.append(batch_corrupt_stuff)
+            del batch_corrupt_stuff
+            gc.collect()
+            torch.cuda.empty_cache()
         corrupt_stuff = torch.cat(corrupt_stuff, dim=0)
 
         if self.verbose:
