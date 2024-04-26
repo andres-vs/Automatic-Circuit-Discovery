@@ -198,10 +198,22 @@ class TLACDCExperiment:
 
     def update_cur_metric(self, recalc_metric=True, recalc_edges=True, initial=False):
         if recalc_metric:
-            logits = self.model(self.ds)
+            batch_size = 8  # Set your desired batch size
+            logits = []
+            for i in tqdm(range(0, len(self.ref_ds), batch_size)):
+                batch = self.ds[i:i+batch_size]
+                batch_logits = self.model(batch)
+                logits.append(batch_logits)
+                del batch, batch_logits
+                gc.collect()
+                torch.cuda.empty_cache()
+            logits = torch.cat(logits, dim=0)
             self.cur_metric = self.metric(logits)
             if self.second_metric is not None:
                 self.cur_second_metric = self.second_metric(logits)
+            del logits
+            gc.collect()
+            torch.cuda.empty_cache()
 
         if recalc_edges:
             self.cur_edges = self.count_no_edges()
@@ -446,16 +458,12 @@ class TLACDCExperiment:
             )
         self.model.cache_all(self.global_cache.corrupted_cache)
         batch_size = 8  # Set your desired batch size
-        corrupt_stuff = []
         for i in tqdm(range(0, len(self.ref_ds), batch_size)):
             batch = self.ref_ds[i:i+batch_size]
             batch_corrupt_stuff = self.model(batch)
-            # print(batch_corrupt_stuff)
-            corrupt_stuff.append(batch_corrupt_stuff)
-            del batch_corrupt_stuff
+            del batch, batch_corrupt_stuff
             gc.collect()
             torch.cuda.empty_cache()
-        corrupt_stuff = torch.cat(corrupt_stuff, dim=0)
 
         if self.verbose:
             print("Done corrupting things")
