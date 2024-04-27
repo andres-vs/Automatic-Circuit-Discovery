@@ -16,8 +16,11 @@ def remove_special_tokens(example):
     example['input'] = example['input'].replace('[CLS]', '')
     return {'input': example['input'], 'label': example['label']}
 
-def tokenize_function(tokenizer, examples):
-    return tokenizer(examples["input"], truncation=True, padding="max_length")
+def tokenize_function(tokenizer, examples, padding, max_length=None):
+    if max_length is not None:
+        return tokenizer(examples["input"], truncation=True, padding=padding, max_length=max_length)
+    else:
+        return tokenizer(examples["input"], truncation=True, padding=padding)
 
 def get_finetuned_bert_model(model_name, device):
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
@@ -73,8 +76,10 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     examples = examples.map(remove_special_tokens)
     corrupted_examples = generate_corrupt_examples(examples)
     
-    tokenized_examples = tokenize_function(tl_model.tokenizer, examples)
-    tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples)
+    tokenized_examples = tokenize_function(tl_model.tokenizer, examples, padding=True)
+    print(tokenized_examples)
+    print(len(tokenized_examples["input_ids"][0]), len(tokenized_examples["input_ids"][1]), len(tokenized_examples["attention_mask"][0]), len(tokenized_examples["attention_mask"][1]))
+    tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding="max_length", max_length=len(tokenized_examples["input_ids"][0]))
     
     # validation_data = examples[:num_examples]["input"]
     # validation_patch_data = corrupted_examples[:num_examples]["input"]

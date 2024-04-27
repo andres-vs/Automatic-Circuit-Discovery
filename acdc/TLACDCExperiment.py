@@ -13,6 +13,7 @@ from torch import nn
 from torch.nn import functional as F
 from acdc.TLACDCInterpNode import TLACDCInterpNode
 from acdc.TLACDCCorrespondence import TLACDCCorrespondence
+import torch.include
 from transformer_lens.HookedTransformer import HookedTransformer
 from acdc.global_cache import GlobalCache
 from acdc.acdc_graphics import log_metrics_to_wandb
@@ -141,21 +142,25 @@ class TLACDCExperiment:
         self.global_cache = GlobalCache(
             device=("cpu" if self.online_cache_cpu else "cuda", "cpu" if self.corrupted_cache_cpu else "cuda"),
         )
-
+        
+        print("Mem before corruption", torch.cuda.memory_allocated())
+        wait = input("Press Enter to continue.")
         self.setup_corrupted_cache()
         if self.corrupted_cache_cpu:
             self.global_cache.to("cpu", which_caches="corrupted")
-
+        print("Mem after corruption", torch.cuda.memory_allocated())
+        wait = input("Press Enter to continue.")
         self.setup_model_hooks(
             add_sender_hooks=add_sender_hooks,
             add_receiver_hooks=add_receiver_hooks,
         )
-
+        # print("Mem after hooks", torch.cuda.memory_allocated())
+        # wait = input("Press Enter to continue.")
         self.using_wandb = using_wandb
         if using_wandb:
             wandb.init(
-                entity=wandb_entity_name,
-                group=wandb_group_name,
+                # entity=wandb_entity_name,
+                # group=wandb_group_name,
                 project=wandb_project_name,
                 name=wandb_run_name,
                 notes=wandb_notes,
@@ -167,7 +172,8 @@ class TLACDCExperiment:
         self.metric = lambda x: metric(x).item()
         self.second_metric = second_metric
         self.update_cur_metric(recalc_metric=True, recalc_edges=True)
-
+        print("Mem after update metric", torch.cuda.memory_allocated())
+        wait = input("Press Enter to continue.")
         self.threshold = threshold
         assert self.ref_ds is not None or self.zero_ablation, "If you're doing random ablation, you need a ref ds"
 
@@ -198,23 +204,25 @@ class TLACDCExperiment:
 
     def update_cur_metric(self, recalc_metric=True, recalc_edges=True, initial=False):
         if recalc_metric:
-            batch_size = 8  # Set your desired batch size
-            logits = []
-            for i in tqdm(range(0, len(self.ref_ds), batch_size)):
-                batch = self.ds[i:i+batch_size]
-                with torch.no_grad():
-                    batch_logits = self.model(batch)
-                logits.append(batch_logits)
-                del batch, batch_logits
-                gc.collect()
-                torch.cuda.empty_cache()
-            logits = torch.cat(logits, dim=0)
+            # batch_size = 8  # Set your desired batch size
+            # logits = []
+            # for i in tqdm(range(0, len(self.ref_ds), batch_size)):
+            #     batch = self.ds[i:i+batch_size]
+            #     with torch.no_grad():
+            #         batch_logits = self.model(batch)
+            #     logits.append(batch_logits)
+            #     del batch, batch_logits
+            #     gc.collect()
+            #     torch.cuda.empty_cache()
+            # logits = torch.cat(logits, dim=0)
+            
+            logits = self.model(self.ds)
             self.cur_metric = self.metric(logits)
             if self.second_metric is not None:
                 self.cur_second_metric = self.second_metric(logits)
-            del logits
-            gc.collect()
-            torch.cuda.empty_cache()
+            # del logits
+            # gc.collect()
+            # torch.cuda.empty_cache()
 
         if recalc_edges:
             self.cur_edges = self.count_no_edges()
@@ -329,8 +337,13 @@ class TLACDCExperiment:
 
         # corrupted_cache (and thus z) contains the residual stream for the corrupted data
         # That is, the sum of all heads and MLPs and biases from previous layers
+        # print("hook_point_input_shape", hook_point_input.shape)
+        # print("hook_name", hook.name)
+        # print("hook_point_input.device", hook_point_input.device)
+        # print("global_cache.corrupted_cache[hook.name].device", self.global_cache.corrupted_cache[hook.name].device)
+        # print("global_cache.corrupted_cache[hook.name].shape", self.global_cache.corrupted_cache[hook.name].shape)
         hook_point_input[:] = self.global_cache.corrupted_cache[hook.name].to(hook_point_input.device) # It is crucial to use [:] to not use same tensor
-
+        # wait = input("Press Enter to continue.")
         # We will now edit the input activations to this component 
         # This is one of the key reasons ACDC is slow, so the implementation is for performance
         # 
@@ -458,14 +471,15 @@ class TLACDCExperiment:
                 scramble_positions,
             )
         self.model.cache_all(self.global_cache.corrupted_cache)
-        batch_size = 8  # Set your desired batch size
-        for i in tqdm(range(0, len(self.ref_ds), batch_size)):
-            batch = self.ref_ds[i:i+batch_size]
-            with torch.no_grad():
-                batch_corrupt_stuff = self.model(batch)
-            del batch, batch_corrupt_stuff
-            gc.collect()
-            torch.cuda.empty_cache()
+        # batch_size = 8  # Set your desired batch size
+        # for i in tqdm(range(0, len(self.ref_ds), batch_size)):
+        #     batch = self.ref_ds[i:i+batch_size]
+        #     with torch.no_grad():
+        #         batch_corrupt_stuff = self.model(batch)
+        #     del batch, batch_corrupt_stuff
+        #     gc.collect()
+        #     torch.cuda.empty_cache()
+        corrupt_stuff = self.model(self.ref_ds)
 
         if self.verbose:
             print("Done corrupting things")
