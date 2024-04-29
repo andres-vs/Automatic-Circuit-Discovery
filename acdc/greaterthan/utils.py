@@ -181,7 +181,7 @@ def get_all_greaterthan_things(num_examples, metric_name, device="cuda"):
         base_logprobs = F.log_softmax(base_logits, dim=-1)
         base_validation_logprobs = base_logprobs[:num_examples]
         base_test_logprobs = base_logprobs[num_examples:]
-
+    print(base_logits.size(), base_logprobs.size(), base_validation_logprobs.size(), base_test_logprobs.size())
     if metric_name == "greaterthan":
         validation_metric = partial(greaterthan_metric, tokens=validation_data.cpu())
     elif metric_name == "kl_div":

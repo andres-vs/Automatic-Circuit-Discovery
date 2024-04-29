@@ -24,7 +24,7 @@ def tokenize_function(tokenizer, examples, padding, max_length=None):
 
 def get_finetuned_bert_model(model_name, device):
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer) #, fold_ln=False)
+    tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer, head_type='classification') #, fold_ln=False)
     tl_model = tl_model.to(device)
     tl_model.set_use_attn_result(True)
     tl_model.set_use_split_qkv_input(True)
@@ -79,8 +79,13 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     tokenized_examples = tokenize_function(tl_model.tokenizer, examples, padding=True)
     print(tokenized_examples)
     print(len(tokenized_examples["input_ids"][0]), len(tokenized_examples["input_ids"][1]), len(tokenized_examples["attention_mask"][0]), len(tokenized_examples["attention_mask"][1]))
-    tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding="max_length", max_length=len(tokenized_examples["input_ids"][0]))
-    
+    tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True)
+    if len(tokenized_examples["input_ids"][0]) < len(tokenized_corrupted_examples["input_ids"][0]):
+        print("corrupted examples are longer")
+        tokenized_examples = tokenize_function(tl_model.tokenizer, examples, padding=True, max_length=len(tokenized_corrupted_examples["input_ids"][0]))
+    elif len(tokenized_examples["input_ids"][0]) > len(tokenized_corrupted_examples["input_ids"][0]):
+        print("clean examples are longer")
+        tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True, max_length=len(tokenized_examples["input_ids"][0]))
     # validation_data = examples[:num_examples]["input"]
     # validation_patch_data = corrupted_examples[:num_examples]["input"]
     # validation_labels = examples[:num_examples]["label"]
@@ -111,6 +116,8 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
         with torch.no_grad():
             logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])[:, -1, :]
         # print(i, "logits", torch.cuda.memory_allocated())
+        print(logits.shape)
+        print(logits)
         base_model_logits.append(logits)
         # print(i, "appended", torch.cuda.memory_allocated())
         del batch_inputs["input_ids"], batch_inputs["attention_mask"], batch_inputs
@@ -119,12 +126,16 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
         # print(i, "deleted", torch.cuda.memory_allocated())
         # wait = input("(iteration done) Press Enter to continue.")
     # wait = input("(calculated base model logits) Press Enter to continue.")
+    print(len(base_model_logits))
+    print(base_model_logits)
     base_model_logits = torch.cat(base_model_logits, dim=0)
+    print(base_model_logits.size())
     # wait = input("(recalculated base model logprobs) Press Enter to continue.")
     base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
     # wait = input("(calculated base model logprobs) Press Enter to continue.")
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
+    print(base_validation_logprobs.size(), base_test_logprobs.size())
     # wait = input("(derived validation and test logprobs) Press Enter to continue.")
     del base_model_logits
     del base_model_logprobs
@@ -139,7 +150,9 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
             base_model_probs_last_seq_element_only=False,
             return_one_element=kl_return_one_element,
         )
-
+    else:
+        raise ValueError(f"Unknown metric {metric_name}")
+        
     test_metrics = {
         "kl_div": partial(
             kl_divergence,
