@@ -80,13 +80,13 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     print("all_examples: ", all_examples)
     tokenized_all = tokenize_function(tl_model.tokenizer, all_examples, padding=True)
     tokenized_examples = {
-        "input_ids": tokenized_all["input_ids"][:num_examples],
-        "attention_mask": tokenized_all["attention_mask"][:num_examples]
+        "input_ids": tokenized_all["input_ids"][:num_examples*2],
+        "attention_mask": tokenized_all["attention_mask"][:num_examples*2]
     }
 
     tokenized_corrupted_examples = {
-        "input_ids": tokenized_all["input_ids"][num_examples:],
-        "attention_mask": tokenized_all["attention_mask"][num_examples:]
+        "input_ids": tokenized_all["input_ids"][num_examples*2:],
+        "attention_mask": tokenized_all["attention_mask"][num_examples*2:]
     }
     # print(len(tokenized_examples["input_ids"][0]), len(tokenized_examples["input_ids"][1]), len(tokenized_examples["attention_mask"][0]), len(tokenized_examples["attention_mask"][1]))
     # tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True)
@@ -96,7 +96,7 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     # elif len(tokenized_examples["input_ids"][0]) > len(tokenized_corrupted_examples["input_ids"][0]):
     #     print("clean examples are longer")
     #     tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True, max_length=len(tokenized_examples["input_ids"][0]))
-    print(len(tokenized_examples["input_ids"][0]), len(tokenized_corrupted_examples["input_ids"][0]))
+    print(len(tokenized_examples["input_ids"]), len(tokenized_corrupted_examples["input_ids"]))
     # validation_data = examples[:num_examples]["input"]
     # validation_patch_data = corrupted_examples[:num_examples]["input"]
     # validation_labels = examples[:num_examples]["label"]
