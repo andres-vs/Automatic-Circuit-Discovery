@@ -7,7 +7,7 @@ from transformer_lens.HookedEncoder import HookedEncoder
 from transformers import AutoTokenizer
 
 from huggingface_hub import login
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 import random
 from datasets import Dataset
 from tqdm import tqdm
@@ -75,17 +75,28 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     
     examples = examples.map(remove_special_tokens)
     corrupted_examples = generate_corrupt_examples(examples)
-    
-    tokenized_examples = tokenize_function(tl_model.tokenizer, examples, padding=True)
-    print(tokenized_examples)
-    print(len(tokenized_examples["input_ids"][0]), len(tokenized_examples["input_ids"][1]), len(tokenized_examples["attention_mask"][0]), len(tokenized_examples["attention_mask"][1]))
-    tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True)
-    if len(tokenized_examples["input_ids"][0]) < len(tokenized_corrupted_examples["input_ids"][0]):
-        print("corrupted examples are longer")
-        tokenized_examples = tokenize_function(tl_model.tokenizer, examples, padding=True, max_length=len(tokenized_corrupted_examples["input_ids"][0]))
-    elif len(tokenized_examples["input_ids"][0]) > len(tokenized_corrupted_examples["input_ids"][0]):
-        print("clean examples are longer")
-        tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True, max_length=len(tokenized_examples["input_ids"][0]))
+    print(examples)
+    all_examples = concatenate_datasets([examples, corrupted_examples])
+    print("all_examples: ", all_examples)
+    tokenized_all = tokenize_function(tl_model.tokenizer, all_examples, padding=True)
+    tokenized_examples = {
+        "input_ids": tokenized_all["input_ids"][:num_examples],
+        "attention_mask": tokenized_all["attention_mask"][:num_examples]
+    }
+
+    tokenized_corrupted_examples = {
+        "input_ids": tokenized_all["input_ids"][num_examples:],
+        "attention_mask": tokenized_all["attention_mask"][num_examples:]
+    }
+    # print(len(tokenized_examples["input_ids"][0]), len(tokenized_examples["input_ids"][1]), len(tokenized_examples["attention_mask"][0]), len(tokenized_examples["attention_mask"][1]))
+    # tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True)
+    # if len(tokenized_examples["input_ids"][0]) < len(tokenized_corrupted_examples["input_ids"][0]):
+    #     print("corrupted examples are longer")
+    #     tokenized_examples = tokenize_function(tl_model.tokenizer, examples, padding=True, max_length=len(tokenized_corrupted_examples["input_ids"][0]))
+    # elif len(tokenized_examples["input_ids"][0]) > len(tokenized_corrupted_examples["input_ids"][0]):
+    #     print("clean examples are longer")
+    #     tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True, max_length=len(tokenized_examples["input_ids"][0]))
+    print(len(tokenized_examples["input_ids"][0]), len(tokenized_corrupted_examples["input_ids"][0]))
     # validation_data = examples[:num_examples]["input"]
     # validation_patch_data = corrupted_examples[:num_examples]["input"]
     # validation_labels = examples[:num_examples]["label"]
@@ -130,8 +141,10 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     print(base_model_logits)
     base_model_logits = torch.cat(base_model_logits, dim=0)
     print(base_model_logits.size())
+    print(base_model_logits)
     # wait = input("(recalculated base model logprobs) Press Enter to continue.")
     base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
+    print(base_model_logprobs)
     # wait = input("(calculated base model logprobs) Press Enter to continue.")
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
