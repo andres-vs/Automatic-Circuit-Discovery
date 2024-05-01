@@ -69,10 +69,12 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     dataset = load_dataset(dataset_name)
     test_size = len(dataset["test"])
     if num_examples*2 < test_size:
-        examples = dataset["test"].select(random.sample(range(test_size), num_examples*2))
+        # examples = dataset["test"].select(random.sample(range(test_size), num_examples*2))
+        examples = dataset["test"].select(range(10))
     else:
         raise ValueError("num_examples cannot exceed half of the test split size.")
-    
+    print(examples)
+    print(examples["label"])
     examples = examples.map(remove_special_tokens)
     corrupted_examples = generate_corrupt_examples(examples)
     print(examples)
@@ -125,7 +127,7 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
         # batch_inputs_size = batch_inputs['input_ids'].element_size() * batch_inputs['input_ids'].nelement() / (1024 * 1024 * 1024)
         
         with torch.no_grad():
-            logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])[:, -1, :]
+            logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])
         # print(i, "logits", torch.cuda.memory_allocated())
         print(logits.shape)
         print(logits)
