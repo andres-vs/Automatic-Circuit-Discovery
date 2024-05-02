@@ -69,17 +69,17 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     dataset = load_dataset(dataset_name)
     test_size = len(dataset["test"])
     if num_examples*2 < test_size:
-        # examples = dataset["test"].select(random.sample(range(test_size), num_examples*2))
-        examples = dataset["test"].select(range(10))
+        examples = dataset["test"].select(random.sample(range(test_size), num_examples*2))
+        # examples = dataset["test"].select(range(10))
     else:
         raise ValueError("num_examples cannot exceed half of the test split size.")
-    print(examples)
+    # print(examples)
     print(examples["label"])
     examples = examples.map(remove_special_tokens)
     corrupted_examples = generate_corrupt_examples(examples)
     print(examples)
     all_examples = concatenate_datasets([examples, corrupted_examples])
-    print("all_examples: ", all_examples)
+    # print("all_examples: ", all_examples)
     tokenized_all = tokenize_function(tl_model.tokenizer, all_examples, padding=True)
     tokenized_examples = {
         "input_ids": tokenized_all["input_ids"][:num_examples*2],
@@ -98,7 +98,8 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     # elif len(tokenized_examples["input_ids"][0]) > len(tokenized_corrupted_examples["input_ids"][0]):
     #     print("clean examples are longer")
     #     tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True, max_length=len(tokenized_examples["input_ids"][0]))
-    print(len(tokenized_examples["input_ids"]), len(tokenized_corrupted_examples["input_ids"]))
+    # print(len(tokenized_examples["input_ids"]), len(tokenized_corrupted_examples["input_ids"]))
+    print("tokenized examples", tokenized_examples)
     # validation_data = examples[:num_examples]["input"]
     # validation_patch_data = corrupted_examples[:num_examples]["input"]
     # validation_labels = examples[:num_examples]["label"]
@@ -129,8 +130,8 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
         with torch.no_grad():
             logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])
         # print(i, "logits", torch.cuda.memory_allocated())
-        print(logits.shape)
-        print(logits)
+        # print(logits.shape)
+        # print(logits)
         base_model_logits.append(logits)
         # print(i, "appended", torch.cuda.memory_allocated())
         del batch_inputs["input_ids"], batch_inputs["attention_mask"], batch_inputs
@@ -139,14 +140,14 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
         # print(i, "deleted", torch.cuda.memory_allocated())
         # wait = input("(iteration done) Press Enter to continue.")
     # wait = input("(calculated base model logits) Press Enter to continue.")
-    print(len(base_model_logits))
-    print(base_model_logits)
+    # print(len(base_model_logits))
+    # print(base_model_logits)
     base_model_logits = torch.cat(base_model_logits, dim=0)
-    print(base_model_logits.size())
-    print(base_model_logits)
+    # print(base_model_logits.size())
+    print("base_model_logits", base_model_logits)
     # wait = input("(recalculated base model logprobs) Press Enter to continue.")
     base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
-    print(base_model_logprobs)
+    print("base_model_logprobs", base_model_logprobs)
     # wait = input("(calculated base model logprobs) Press Enter to continue.")
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
@@ -161,7 +162,7 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
         validation_metric = partial(
             kl_divergence,
             base_model_logprobs=base_validation_logprobs,
-            last_seq_element_only=True,
+            last_seq_element_only=False,
             base_model_probs_last_seq_element_only=False,
             return_one_element=kl_return_one_element,
         )
@@ -173,7 +174,7 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
             kl_divergence,
             base_model_logprobs=base_test_logprobs,
             mask_repeat_candidates=None,
-            last_seq_element_only=True,
+            last_seq_element_only=False,
         ),
     }
 
