@@ -54,9 +54,9 @@ def kl_divergence(
     if mask_repeat_candidates is not None:
         assert kl_div.shape == mask_repeat_candidates.shape, (kl_div.shape, mask_repeat_candidates.shape)
         answer = kl_div[mask_repeat_candidates]
-    elif not last_seq_element_only:
-        assert kl_div.ndim == 2, kl_div.shape
-        answer = kl_div.view(-1)
+    # elif not last_seq_element_only:
+    #     assert kl_div.ndim == 2, kl_div.shape
+    #     answer = kl_div.view(-1)
     else:
         answer = kl_div
 
