@@ -144,12 +144,12 @@ class TLACDCExperiment:
         )
         
         print("Mem before corruption", torch.cuda.memory_allocated())
-        wait = input("Press Enter to continue.")
+        # wait = input("Press Enter to continue.")
         self.setup_corrupted_cache()
         if self.corrupted_cache_cpu:
             self.global_cache.to("cpu", which_caches="corrupted")
         print("Mem after corruption", torch.cuda.memory_allocated())
-        wait = input("Press Enter to continue.")
+        # wait = input("Press Enter to continue.")
         self.setup_model_hooks(
             add_sender_hooks=add_sender_hooks,
             add_receiver_hooks=add_receiver_hooks,
@@ -173,7 +173,7 @@ class TLACDCExperiment:
         self.second_metric = second_metric
         self.update_cur_metric(recalc_metric=True, recalc_edges=True)
         print("Mem after update metric", torch.cuda.memory_allocated())
-        wait = input("Press Enter to continue.")
+        # wait = input("Press Enter to continue.")
         self.threshold = threshold
         assert self.ref_ds is not None or self.zero_ablation, "If you're doing random ablation, you need a ref ds"
 

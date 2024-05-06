@@ -99,7 +99,7 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     #     print("clean examples are longer")
     #     tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True, max_length=len(tokenized_examples["input_ids"][0]))
     # print(len(tokenized_examples["input_ids"]), len(tokenized_corrupted_examples["input_ids"]))
-    print("tokenized examples", tokenized_examples)
+    # print("tokenized examples", tokenized_examples)
     # validation_data = examples[:num_examples]["input"]
     # validation_patch_data = corrupted_examples[:num_examples]["input"]
     # validation_labels = examples[:num_examples]["label"]
