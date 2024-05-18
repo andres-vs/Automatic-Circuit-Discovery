@@ -208,25 +208,25 @@ class TLACDCExperiment:
 
     def update_cur_metric(self, recalc_metric=True, recalc_edges=True, initial=False):
         if recalc_metric:
-            # batch_size = 8  # Set your desired batch size
-            # logits = []
-            # for i in tqdm(range(0, len(self.ref_ds), batch_size)):
-            #     batch = self.ds[i:i+batch_size]
-            #     with torch.no_grad():
-            #         batch_logits = self.model(batch)
-            #     logits.append(batch_logits)
-            #     del batch, batch_logits
-            #     gc.collect()
-            #     torch.cuda.empty_cache()
-            # logits = torch.cat(logits, dim=0)
+            batch_size = 1  # Set your desired batch size
+            logits = []
+            for i in tqdm(range(0, len(self.ref_ds), batch_size)):
+                batch = self.ds[i:i+batch_size]
+                with torch.no_grad():
+                    batch_logits = self.model(batch)
+                logits.append(batch_logits)
+                del batch, batch_logits
+                gc.collect()
+                torch.cuda.empty_cache()
+            logits = torch.cat(logits, dim=0)
             
-            logits = self.model(self.ds)
+            # logits = self.model(self.ds)
             self.cur_metric = self.metric(logits)
             if self.second_metric is not None:
                 self.cur_second_metric = self.second_metric(logits)
-            # del logits
-            # gc.collect()
-            # torch.cuda.empty_cache()
+            del logits
+            gc.collect()
+            torch.cuda.empty_cache()
 
         if recalc_edges:
             self.cur_edges = self.count_no_edges()
