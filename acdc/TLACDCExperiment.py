@@ -142,19 +142,23 @@ class TLACDCExperiment:
         self.global_cache = GlobalCache(
             device=("cpu" if self.online_cache_cpu else "cuda", "cpu" if self.corrupted_cache_cpu else "cuda"),
         )
+        self.temp_global_cache = GlobalCache(
+            device=("cpu" if self.online_cache_cpu else "cuda", "cpu" if self.corrupted_cache_cpu else "cuda"),
+        )
         
         print("Mem before corruption", torch.cuda.memory_allocated())
         # wait = input("Press Enter to continue.")
         self.setup_corrupted_cache()
-        if self.corrupted_cache_cpu:
-            self.global_cache.to("cpu", which_caches="corrupted")
         print("Mem after corruption", torch.cuda.memory_allocated())
+        # if self.corrupted_cache_cpu:
+        #     self.global_cache.to("cpu", which_caches="corrupted")
+        # print("Mem after corrupted to cpu", torch.cuda.memory_allocated())
         # wait = input("Press Enter to continue.")
         self.setup_model_hooks(
             add_sender_hooks=add_sender_hooks,
             add_receiver_hooks=add_receiver_hooks,
         )
-        # print("Mem after hooks", torch.cuda.memory_allocated())
+        print("Mem after hooks", torch.cuda.memory_allocated())
         # wait = input("Press Enter to continue.")
         self.using_wandb = using_wandb
         if using_wandb:
@@ -257,7 +261,7 @@ class TLACDCExperiment:
         cache_keys.reverse()
 
         for hook_name in cache_keys:
-            print(hook_name)            
+            # print(hook_name)            
             if hook_name in self.corr.graph:
                 new_graph[hook_name] = self.corr.graph[hook_name]
 
@@ -443,7 +447,6 @@ class TLACDCExperiment:
             print("Adding sender hooks...")
 
         self.model.reset_hooks()
-
         if self.zero_ablation:
             # to calculate the inputs to each model component, 
             # we need zero out all the outputs into the residual stream
@@ -462,7 +465,6 @@ class TLACDCExperiment:
                 hook = lambda z, hook: torch.zeros_like(z),
             )
             # we now add the saving hooks AFTER we've zeroed out activations
-
         if self.use_pos_embed and not self.zero_ablation:    
             def scramble_positions(z, hook):
                 z[:] = shuffle_tensor(z[0], seed=49)
@@ -470,22 +472,46 @@ class TLACDCExperiment:
                 "hook_pos_embed",
                 scramble_positions,
             )
-        self.model.cache_all(self.global_cache.corrupted_cache)
-        # batch_size = 8  # Set your desired batch size
-        # for i in tqdm(range(0, len(self.ref_ds), batch_size)):
-        #     batch = self.ref_ds[i:i+batch_size]
-        #     with torch.no_grad():
-        #         batch_corrupt_stuff = self.model(batch)
-        #     del batch, batch_corrupt_stuff
-        #     gc.collect()
-        #     torch.cuda.empty_cache()
-        corrupt_stuff = self.model(self.ref_ds)
+        
+        self.model.cache_all(self.temp_global_cache.corrupted_cache)
+        
+        
+        print("Mem after enable caching", torch.cuda.memory_allocated())
+        # corrupt_stuff = self.model(self.ref_ds)
+        # print("Mem after forward pass unbatched", torch.cuda.memory_allocated())
+        # print("Corrupted cache unbatched", self.temp_global_cache.corrupted_cache["blocks.0.hook_resid_pre"])
+        batch_size = 8  # Set your desired batch size
+        for i in tqdm(range(0, len(self.ref_ds), batch_size)):
+            batch = self.ref_ds[i:i+batch_size]
+            with torch.no_grad():
+                batch_corrupt_stuff = self.model(batch)
+            print(f"Mem after forward pass batched {i}", torch.cuda.memory_allocated())
+            # Iterate over each layer to store activations
+            for layer_name, activation in self.temp_global_cache.corrupted_cache.items():
+                if layer_name not in self.global_cache.corrupted_cache:
+                    # print("activation", activation)
+                    self.global_cache.corrupted_cache[layer_name] = activation.detach().to("cpu" if self.corrupted_cache_cpu else "cuda")
+                else:
+                    # print("current cache", self.global_cache.corrupted_cache[layer_name])
+                    # print("new activations", activation)
+                    self.global_cache.corrupted_cache[layer_name] = torch.cat((self.global_cache.corrupted_cache[layer_name], activation.detach().to("cpu" if self.corrupted_cache_cpu else "cuda")), dim=0)
+            print(f"Mem after copying activations {i}", torch.cuda.memory_allocated())
+            del batch, batch_corrupt_stuff
+            gc.collect()
+            torch.cuda.empty_cache()
+        print("Corrupted cache batched shape", self.global_cache.corrupted_cache["blocks.11.hook_mlp_out"].shape)
+        # print("Corrupted cache", self.global_cache.corrupted_cache)
+        print("Mem after forward pass", torch.cuda.memory_allocated())
+        del self.temp_global_cache
+        gc.collect()
+        torch.cuda.empty_cache()
 
         if self.verbose:
             print("Done corrupting things")
 
-        if self.corrupted_cache_cpu:
-            self.global_cache.to("cpu", which_caches="second")
+        # if self.corrupted_cache_cpu:
+        #     self.global_cache.to("cpu", which_caches="second")
+        print("Mem after corrupted to cpu", torch.cuda.memory_allocated())
 
         self.model.reset_hooks()
 

@@ -33,10 +33,10 @@ class GlobalCache: # this dict stores the activations from the forward pass
     def to(self, device, which_caches: Literal["online", "corrupted", "all"]="all"): # 
 
         caches = []
-        if which_caches != "online":
+        if which_caches == "online" or which_caches == "first" or which_caches == "all":
             self.device = (device, self.device[1])
             caches.append(self.online_cache)
-        if which_caches != "corrupted":
+        if which_caches == "corrupted" or which_caches == "second" or which_caches == "all":
             self.device = (self.device[0], device)
             caches.append(self.corrupted_cache)
 

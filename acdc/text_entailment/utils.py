@@ -63,49 +63,29 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
 
     login(token="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", add_to_git_credential=True)
     dataset_name = "andres-vs/ruletaker-Att-Noneg-depth0"
-    # as you do sentence classification in this task, I used a classification model instead of an autoregressive one
-    # model_name = "bert-base-uncased"
 
     dataset = load_dataset(dataset_name)
     test_size = len(dataset["test"])
     if num_examples*2 < test_size:
-        examples = dataset["test"].select(random.sample(range(test_size), num_examples*2))
-        # examples = dataset["test"].select(range(10))
+        # examples = dataset["test"].select(random.sample(range(test_size), num_examples*2))
+        examples = dataset["test"].select(range(num_examples*2))
     else:
         raise ValueError("num_examples cannot exceed half of the test split size.")
-    # print(examples)
-    print(examples["label"])
+    
     examples = examples.map(remove_special_tokens)
     corrupted_examples = generate_corrupt_examples(examples)
-    print(examples)
     all_examples = concatenate_datasets([examples, corrupted_examples])
-    # print("all_examples: ", all_examples)
+
     tokenized_all = tokenize_function(tl_model.tokenizer, all_examples, padding=True)
     tokenized_examples = {
         "input_ids": tokenized_all["input_ids"][:num_examples*2],
         "attention_mask": tokenized_all["attention_mask"][:num_examples*2]
     }
-
     tokenized_corrupted_examples = {
         "input_ids": tokenized_all["input_ids"][num_examples*2:],
         "attention_mask": tokenized_all["attention_mask"][num_examples*2:]
     }
-    # print(len(tokenized_examples["input_ids"][0]), len(tokenized_examples["input_ids"][1]), len(tokenized_examples["attention_mask"][0]), len(tokenized_examples["attention_mask"][1]))
-    # tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True)
-    # if len(tokenized_examples["input_ids"][0]) < len(tokenized_corrupted_examples["input_ids"][0]):
-    #     print("corrupted examples are longer")
-    #     tokenized_examples = tokenize_function(tl_model.tokenizer, examples, padding=True, max_length=len(tokenized_corrupted_examples["input_ids"][0]))
-    # elif len(tokenized_examples["input_ids"][0]) > len(tokenized_corrupted_examples["input_ids"][0]):
-    #     print("clean examples are longer")
-    #     tokenized_corrupted_examples = tokenize_function(tl_model.tokenizer, corrupted_examples, padding=True, max_length=len(tokenized_examples["input_ids"][0]))
-    # print(len(tokenized_examples["input_ids"]), len(tokenized_corrupted_examples["input_ids"]))
-    # print("tokenized examples", tokenized_examples)
-    # validation_data = examples[:num_examples]["input"]
-    # validation_patch_data = corrupted_examples[:num_examples]["input"]
-    # validation_labels = examples[:num_examples]["label"]
-    # test_data = examples[num_examples:]["input"]
-    # test_patch_data = corrupted_examples[num_examples:]["input"]
-    # test_labels = examples[num_examples:]["label"]
+
     validation_data = torch.tensor(tokenized_examples["input_ids"][:num_examples])
     valdiation_mask = torch.tensor(tokenized_examples["attention_mask"][:num_examples])
     validation_patch_data = torch.tensor(tokenized_corrupted_examples["input_ids"][:num_examples])
