@@ -308,8 +308,9 @@ class TLACDCExperiment:
         if EdgeType.DIRECT_COMPUTATION in incoming_edge_types:
 
             old_z = hook_point_input.clone()
-            hook_point_input[:] = self.global_cache.corrupted_cache[hook.name].to(hook_point_input.device) # It is crucial to use [:] to not use same tensor
-
+            batch_size = hook_point_input.shape[0]
+            hook_point_input[:] = self.global_cache.corrupted_cache[hook.name][self.current_batch_index : self.current_batch_index + batch_size].to(hook_point_input.device) # It is crucial to use [:] to not use same tensor
+        
             if verbose:
                 print("Overwrote to sec cache")
 
