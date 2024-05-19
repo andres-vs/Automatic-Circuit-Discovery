@@ -133,6 +133,7 @@ class TLACDCExperiment:
         self.ref_ds = ref_ds
         self.online_cache_cpu = online_cache_cpu
         self.corrupted_cache_cpu = corrupted_cache_cpu
+        self.num_examples = len(self.ds)
 
         if zero_ablation:
             if self.ref_ds is None:
@@ -208,10 +209,10 @@ class TLACDCExperiment:
 
     def update_cur_metric(self, recalc_metric=True, recalc_edges=True, initial=False):
         if recalc_metric:
-            batch_size = 1  # Set your desired batch size
+            batch_size = 5  # Set your desired batch size
             logits = []
-            for i in tqdm(range(0, len(self.ref_ds), batch_size)):
-                batch = self.ds[i:i+batch_size]
+            for self.current_batch_index in range(0, len(self.ref_ds), batch_size):
+                batch = self.ds[self.current_batch_index : self.current_batch_index+batch_size]
                 with torch.no_grad():
                     batch_logits = self.model(batch)
                 logits.append(batch_logits)
@@ -224,9 +225,9 @@ class TLACDCExperiment:
             self.cur_metric = self.metric(logits)
             if self.second_metric is not None:
                 self.cur_second_metric = self.second_metric(logits)
-            del logits
-            gc.collect()
-            torch.cuda.empty_cache()
+            # del logits
+            # gc.collect()
+            # torch.cuda.empty_cache()
 
         if recalc_edges:
             self.cur_edges = self.count_no_edges()
@@ -346,7 +347,9 @@ class TLACDCExperiment:
         # print("hook_point_input.device", hook_point_input.device)
         # print("global_cache.corrupted_cache[hook.name].device", self.global_cache.corrupted_cache[hook.name].device)
         # print("global_cache.corrupted_cache[hook.name].shape", self.global_cache.corrupted_cache[hook.name].shape)
-        hook_point_input[:] = self.global_cache.corrupted_cache[hook.name].to(hook_point_input.device) # It is crucial to use [:] to not use same tensor
+        
+        batch_size = hook_point_input.shape[0]
+        hook_point_input[:] = self.global_cache.corrupted_cache[hook.name][self.current_batch_index : self.current_batch_index + batch_size].to(hook_point_input.device) # It is crucial to use [:] to not use same tensor
         # wait = input("Press Enter to continue.")
         # We will now edit the input activations to this component 
         # This is one of the key reasons ACDC is slow, so the implementation is for performance
@@ -377,6 +380,13 @@ class TLACDCExperiment:
                             )
                     
                     if edge.edge_type == EdgeType.ADDITION:
+                        # print("hook_point_input", hook_point_input)
+                        # print("hook_point_input[receiver_node_index.as_index].shape", hook_point_input[receiver_node_index.as_index].shape)
+                        # print("hook_point_input[receiver_node_index.as_index]", hook_point_input[receiver_node_index.as_index])
+                        # print("self.global_cache.online_cache[sender_node_name][sender_node_index.as_index].shape", self.global_cache.online_cache[sender_node_name][sender_node_index.as_index].shape)
+                        # print("self.global_cache.online_cache[sender_node_name][sender_node_index.as_index]", self.global_cache.online_cache[sender_node_name][sender_node_index.as_index])
+                        # print("self.global_cache.corrupted_cache[sender_node_name][sender_node_index.as_index].shape", self.global_cache.corrupted_cache[sender_node_name][sender_node_index.as_index].shape)
+                        # print("self.global_cache.corrupted_cache[sender_node_name][sender_node_index.as_index]", self.global_cache.corrupted_cache[sender_node_name][sender_node_index.as_index])
                         # Add the effect of the new head (from the current forward pass)
                         hook_point_input[receiver_node_index.as_index] += self.global_cache.online_cache[
                             sender_node_name
@@ -384,7 +394,7 @@ class TLACDCExperiment:
                         # Remove the effect of this head (from the corrupted data)
                         hook_point_input[receiver_node_index.as_index] -= self.global_cache.corrupted_cache[
                             sender_node_name
-                        ][sender_node_index.as_index].to(hook_point_input.device)
+                        ][self.current_batch_index : self.current_batch_index + batch_size][sender_node_index.as_index].to(hook_point_input.device)
 
                     else: 
                         raise ValueError(f"Unknown edge type {edge.edge_type} ... {edge}")
@@ -480,7 +490,7 @@ class TLACDCExperiment:
         # corrupt_stuff = self.model(self.ref_ds)
         # print("Mem after forward pass unbatched", torch.cuda.memory_allocated())
         # print("Corrupted cache unbatched", self.temp_global_cache.corrupted_cache["blocks.0.hook_resid_pre"])
-        batch_size = 8  # Set your desired batch size
+        batch_size = 5  # Set your desired batch size
         for i in tqdm(range(0, len(self.ref_ds), batch_size)):
             batch = self.ref_ds[i:i+batch_size]
             with torch.no_grad():
