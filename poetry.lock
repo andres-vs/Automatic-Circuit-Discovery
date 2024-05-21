@@ -4636,41 +4636,6 @@ docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
 test = ["argcomplete (>=3.0.3)", "mypy (>=1.5.1)", "pre-commit", "pytest (>=7.0,<7.5)", "pytest-mock", "pytest-mypy-testing"]
 
 [[package]]
-name = "transformer-lens"
-version = "0.0.0"
-description = "An implementation of transformers tailored for mechanistic interpretability."
-optional = false
-python-versions = ">=3.7.4,<4.0"
-files = []
-
-[package.dependencies]
-beartype = ">=0.14.1,<0.15.0"
-datasets = ">=2.7.1"
-einops = ">=0.6.0"
-fancy-einsum = ">=0.0.3"
-jaxtyping = ">=0.2.11"
-numpy = [
-    {version = ">=1.21", markers = "python_version < \"3.10\""},
-    {version = ">=1.23", markers = "python_version >= \"3.10\""},
-]
-pandas = ">=1.1.5"
-rich = ">=12.6.0"
-torch = ">=1.10"
-tqdm = ">=4.64.1"
-transformers = ">=4.25.1"
-wandb = ">=0.13.5"
-
-[package.source]
-type = "git"
-url = "https://github.com/andres-vs/TransformerLens.git"
-reference = "1a46c77"
-resolved_reference = "1a46c77aefc06099b432108c95e34d1ffcf60a50"
-
-[package.extras]
-docs = ["furo (>=2022.12.7)", "myst-parser (>=0.18.1)", "sphinx (==5.2.3)", "sphinx-autobuild (>=2021.3.14)", "sphinxcontrib-napoleon (>=0.7)", "tabulate (>=0.9.0)"]
-
-
-[[package]]
 name = "transformers"
 version = "4.35.2"
 description = "State-of-the-art Machine Learning for JAX, PyTorch and TensorFlow"
