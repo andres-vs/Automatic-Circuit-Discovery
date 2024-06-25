@@ -124,14 +124,14 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     # print(base_model_logits)
     base_model_logits = torch.cat(base_model_logits, dim=0)
     # print(base_model_logits.size())
-    print("base_model_logits", base_model_logits)
+    # print("base_model_logits", base_model_logits)
     # wait = input("(recalculated base model logprobs) Press Enter to continue.")
     base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
-    print("base_model_logprobs", base_model_logprobs)
+    # print("base_model_logprobs", base_model_logprobs)
     # wait = input("(calculated base model logprobs) Press Enter to continue.")
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
-    print(base_validation_logprobs.size(), base_test_logprobs.size())
+    # print(base_validation_logprobs.size(), base_test_logprobs.size())
     # wait = input("(derived validation and test logprobs) Press Enter to continue.")
     del base_model_logits
     del base_model_logprobs
