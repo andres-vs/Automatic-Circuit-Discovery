@@ -29,7 +29,7 @@ pygraphviz = "^1.11"
 tracr = {git = "https://github.com/deepmind/tracr.git", rev = "e75ecda"}
 transformer-lens = {git = "https://github.com/andres-vs/TransformerLens.git", rev = "1a46c77"}
 
-[tool.poetry.dependencies]
+# [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
 pytest-cov = "^4.0.0"
 jupyterlab = "^3.5.0"
