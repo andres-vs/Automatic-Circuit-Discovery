@@ -29,6 +29,8 @@ from collections import OrderedDict
 from functools import partial
 import time
 from acdc.acdc_utils import next_key
+import time
+import time
 
 # some types that will help
 TorchIndexHashableTuple = Tuple[Union[None, slice], ...]
@@ -155,10 +157,12 @@ class TLACDCExperiment:
         #     self.global_cache.to("cpu", which_caches="corrupted")
         # print("Mem after corrupted to cpu", torch.cuda.memory_allocated())
         # wait = input("Press Enter to continue.")
+        print(self.global_cache.device)
         self.setup_model_hooks(
             add_sender_hooks=add_sender_hooks,
             add_receiver_hooks=add_receiver_hooks,
         )
+        print(self.global_cache.device)
         print("Mem after hooks", torch.cuda.memory_allocated())
         # wait = input("Press Enter to continue.")
         self.using_wandb = using_wandb
@@ -208,9 +212,11 @@ class TLACDCExperiment:
         assert self.model.cfg.use_split_qkv_input, "Need to be able to see split by head QKV inputs"
 
     def update_cur_metric(self, recalc_metric=True, recalc_edges=True, initial=False):
+        print("Started updating cur metric")
         if recalc_metric:
             batch_size = 5  # Set your desired batch size
             logits = []
+            start_time = time.time()
             for self.current_batch_index in range(0, len(self.ref_ds), batch_size):
                 batch = self.ds[self.current_batch_index : self.current_batch_index+batch_size]
                 with torch.no_grad():
@@ -219,6 +225,8 @@ class TLACDCExperiment:
                 del batch, batch_logits
                 gc.collect()
                 torch.cuda.empty_cache()
+                print("batch inference took", time.time() - start_time)
+                start_time = time.time()
             logits = torch.cat(logits, dim=0)
             
             # logits = self.model(self.ds)
@@ -228,7 +236,8 @@ class TLACDCExperiment:
             # del logits
             # gc.collect()
             # torch.cuda.empty_cache()
-
+            print("finished recalc metric")
+            
         if recalc_edges:
             self.cur_edges = self.count_no_edges()
 
@@ -495,7 +504,10 @@ class TLACDCExperiment:
         for i in tqdm(range(0, len(self.ref_ds), batch_size)):
             batch = self.ref_ds[i:i+batch_size]
             with torch.no_grad():
+                start_time = time.time()
                 batch_corrupt_stuff = self.model(batch)
+                end_time = time.time()
+                print(f"Forward pass time for batch {i}: {end_time - start_time} seconds")
             print(f"Mem after forward pass batched {i}", torch.cuda.memory_allocated())
             # Iterate over each layer to store activations
             for layer_name, activation in self.temp_global_cache.corrupted_cache.items():
