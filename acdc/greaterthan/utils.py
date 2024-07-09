@@ -75,7 +75,7 @@ class GreaterThanConstants:
     @classmethod
     def get(cls: type["GreaterThanConstants"], device, tokenizer=None) -> "GreaterThanConstants":
         if cls._instance is None:
-            cls._instance = cls(device)
+            cls._instance = cls(device, tokenizer)
         return cls._instance
 
     def __init__(self, device, tokenizer):
@@ -103,7 +103,7 @@ class GreaterThanConstants:
         self.TOKENS = TOKENS
 
         TOKENS_TENSOR = torch.as_tensor([TOKENS[i] for i in range(0, 100)], dtype=torch.long)
-        INV_TOKENS_TENSOR = torch.zeros(self.tokenizer.vocab_size, dtype=torch.long)
+        INV_TOKENS_TENSOR = torch.zeros(tokenizer.vocab_size, dtype=torch.long)
         # INV_TOKENS_TENSOR = torch.zeros(50290, dtype=torch.long)
         for i, v in enumerate(TOKENS_TENSOR):
             INV_TOKENS_TENSOR[v] = i
