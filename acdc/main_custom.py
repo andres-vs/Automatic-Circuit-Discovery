@@ -41,8 +41,8 @@ except Exception as e:
     # disable this option when developing rather than generating notebook outputs
 
     import os # make images folder
-    # if not os.path.exists("ims/"):
-    #     os.mkdir("ims/")
+    if not os.path.exists("ims/"):
+        os.mkdir("ims/")
 
     from IPython import get_ipython
 
@@ -88,15 +88,15 @@ from transformer_lens.hook_points import HookedRootModule, HookPoint
 from transformer_lens.HookedTransformer import (
     HookedTransformer,
 )
-try:
-    from acdc.tracr_task.utils import (
-        get_all_tracr_things,
-        get_tracr_model_input_and_tl_model,
-    )
-except Exception as e:
-    print(f"Could not import `tracr` because {e}; the rest of the file should work but you cannot use the tracr tasks")
-from acdc.docstring.utils import get_all_docstring_things
-from acdc.logic_gates.utils import get_all_logic_gate_things
+# try:
+#     from acdc.tracr_task.utils import (
+#         get_all_tracr_things,
+#         get_tracr_model_input_and_tl_model,
+#     )
+# except Exception as e:
+#     print(f"Could not import `tracr` because {e}; the rest of the file should work but you cannot use the tracr tasks")
+# from acdc.docstring.utils import get_all_docstring_things
+# from acdc.logic_gates.utils import get_all_logic_gate_things
 from acdc.acdc_utils import (
     make_nd_dict,
     reset_network,
@@ -169,7 +169,7 @@ parser.add_argument("--max-num-epochs",type=int, default=100_000)
 parser.add_argument('--single-step', action='store_true', help='Use single step, mostly for testing')
 parser.add_argument("--abs-value-threshold", action='store_true', help='Use the absolute value of the result to check threshold')
 parser.add_argument("--nexamples", type=int, required=True, default=1, help="The number of examples to use")
-parser.add_argument("--model-name", type=str, required=True, default="gpt2", help="The model name to use")
+parser.add_argument("--model-name", type=str, required=True, default="gpt2-small", help="The model name to use")
 if ipython is not None:
     # We are in a notebook
     # you can put the command you would like to run as the ... in r"""..."""
@@ -280,9 +280,10 @@ elif TASK == "docstring":
         correct_incorrect_wandb=True,
     )
 elif TASK == "greaterthan":
-    num_examples = 100
+    num_examples = NEXAMPLES
+    model_name = MODEL_NAME
     things = get_all_greaterthan_things(
-        num_examples=num_examples, metric_name=args.metric, device=DEVICE
+        model_name=model_name, num_examples=num_examples, metric_name=args.metric, device=DEVICE
     )
 elif TASK == "text-entailment":
     num_examples = NEXAMPLES
@@ -398,10 +399,10 @@ for i in range(args.max_num_epochs):
         break
 
     exp.save_edges("final_edges.pkl")
-    exp.save_subgraph("final_subgraph.pkl")
+    exp.save_subgraph("final_subgraph.pth")
 
 if USING_WANDB:
-    edges_fname = f"edges.pth"
+    edges_fname = f"edges.pkl"
     subgraph_fname = f"subgraph.pth"
     exp.save_edges(edges_fname)
     exp.save_subgraph(subgraph_fname)

@@ -16,12 +16,16 @@ from acdc.ioi.ioi_dataset import IOIDataset  # NOTE: we now import this LOCALLY 
 from tqdm import tqdm
 import wandb
 from transformer_lens.HookedTransformer import HookedTransformer
+from transformer_lens.HookedEncoder import HookedEncoder
+from transformers import AutoTokenizer
+
 import warnings
 from functools import partial
 from typing import ClassVar, Optional
 
 import torch
 import torch.nn.functional as F
+
 
 from acdc.acdc_utils import kl_divergence, TorchIndex
 from acdc.docstring.utils import AllDataThings
@@ -69,15 +73,15 @@ class GreaterThanConstants:
     _instance: ClassVar[Optional["GreaterThanConstants"]] = None
 
     @classmethod
-    def get(cls: type["GreaterThanConstants"], device) -> "GreaterThanConstants":
+    def get(cls: type["GreaterThanConstants"], device, tokenizer=None) -> "GreaterThanConstants":
         if cls._instance is None:
             cls._instance = cls(device)
         return cls._instance
 
-    def __init__(self, device):
-        model = get_gpt2_small(device=device)
-        _TOKENIZER = model.tokenizer
-        del model
+    def __init__(self, device, tokenizer):
+        # model = get_gpt2_small(device=device)
+        # _TOKENIZER = model.tokenizer
+        # del model
 
         self.YEARS = []
         self.YEARS_BY_CENTURY = {}
@@ -85,21 +89,22 @@ class GreaterThanConstants:
         for century in range(11, 18):
             all_success = []
             for year in range(century * 100 + 2, (century * 100) + 99):
-                a = _TOKENIZER.encode(f" {year}")
-                if a == [_TOKENIZER.encode(f" {str(year)[:2]}")[0], _TOKENIZER.encode(str(year)[2:])[0]]:
+                a = tokenizer.encode(f" {year}")
+                if a == [tokenizer.encode(f" {str(year)[:2]}")[0], tokenizer.encode(str(year)[2:])[0]]:
                     all_success.append(str(year))
                     continue
             self.YEARS.extend(all_success[1:-1])
             self.YEARS_BY_CENTURY[century] = all_success[1:-1]
 
         TOKENS = {
-            i: _TOKENIZER.encode(f"{'0' if i<=9 else ''}{i}")[0] for i in range(0, 100)
+            i: tokenizer.encode(f"{'0' if i<=9 else ''}{i}")[0] for i in range(0, 100)
         }
         self.INV_TOKENS = {v: k for k, v in TOKENS.items()}
         self.TOKENS = TOKENS
 
         TOKENS_TENSOR = torch.as_tensor([TOKENS[i] for i in range(0, 100)], dtype=torch.long)
-        INV_TOKENS_TENSOR = torch.zeros(50290, dtype=torch.long)
+        INV_TOKENS_TENSOR = torch.zeros(self.tokenizer.vocab_size, dtype=torch.long)
+        # INV_TOKENS_TENSOR = torch.zeros(50290, dtype=torch.long)
         for i, v in enumerate(TOKENS_TENSOR):
             INV_TOKENS_TENSOR[v] = i
 
@@ -138,7 +143,7 @@ def greaterthan_metric(logits, tokens, return_one_element: bool=True):
 
 
 def get_year_data(num_examples, model):
-    constants = GreaterThanConstants.get(model.cfg.device)
+    constants = GreaterThanConstants.get(model.cfg.device, tokenizer=model.tokenizer)
 
     template = "The {noun} lasted from the year {year1} to "
 
@@ -164,11 +169,31 @@ def get_year_data(num_examples, model):
 
     return prompts_tokenized, prompts
 
-def get_all_greaterthan_things(num_examples, metric_name, device="cuda"):
-    model = get_gpt2_small(device=device)
-    data, prompts = get_year_data(num_examples*2, model)
-    patch_data = data.clone()
-    patch_data[:, 7] = 486  # replace with 01
+def get_finetuned_bert_model(model_name, device):
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer, head_type='classification') #, fold_ln=False)
+    tl_model = tl_model.to(device)
+    tl_model.set_use_attn_result(True)
+    tl_model.set_use_split_qkv_input(True)
+    print(tl_model.cfg.to_dict())
+    if "use_hook_mlp_in" in tl_model.cfg.to_dict():
+        tl_model.set_use_hook_mlp_in(True)
+    return tl_model
+
+def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cuda"):
+    if model_name == "gpt2_small":
+        model = get_gpt2_small(device=device)
+        data, prompts = get_year_data(num_examples*2, model)
+        patch_data = data.clone()
+        patch_data[:, 7] = 486  # replace with 01
+    elif model_name == "andres-vs/bert-base-uncased-finetuned_Att-Noneg-depth0":
+        model = get_finetuned_bert_model(model_name, device)
+        data, prompts = get_year_data(num_examples*2, model)
+        patch_data = data.clone()
+        patch_data[:, 7] = 5890  # replace with 01
+    else:
+        raise ValueError(f"Unknown model {model_name}")
+    
 
     validation_data = data[:num_examples]
     validation_patch_data = patch_data[:num_examples]
