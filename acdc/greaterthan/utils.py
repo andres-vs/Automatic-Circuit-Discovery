@@ -86,15 +86,20 @@ class GreaterThanConstants:
         self.YEARS = []
         self.YEARS_BY_CENTURY = {}
 
-        for century in range(11, 18):
-            all_success = []
-            for year in range(century * 100 + 2, (century * 100) + 99):
-                a = tokenizer.encode(f" {year}")
-                if a == [tokenizer.encode(f" {str(year)[:2]}")[0], tokenizer.encode(str(year)[2:])[0]]:
-                    all_success.append(str(year))
-                    continue
-            self.YEARS.extend(all_success[1:-1])
-            self.YEARS_BY_CENTURY[century] = all_success[1:-1]
+        if "bert" in tokenizer.name_or_path:
+            for century in range(11, 18):
+                self.YEARS.extend(range(century * 100 + 2, (century * 100) + 99))
+                self.YEARS_BY_CENTURY[century] = range(century * 100 + 2, (century * 100) + 99)
+        elif "gpt2" in tokenizer.name_or_path:
+            for century in range(11, 18):
+                all_success = []
+                for year in range(century * 100 + 2, (century * 100) + 99):
+                    a = tokenizer.encode(f" {year}")
+                    if a == [tokenizer.encode(f" {str(year)[:2]}")[0], tokenizer.encode(str(year)[2:])[0]]:
+                        all_success.append(str(year))
+                        continue
+                self.YEARS.extend(all_success[1:-1])
+                self.YEARS_BY_CENTURY[century] = all_success[1:-1]
 
         TOKENS = {
             i: tokenizer.encode(f"{'0' if i<=9 else ''}{i}")[0] for i in range(0, 100)
@@ -142,7 +147,7 @@ def greaterthan_metric(logits, tokens, return_one_element: bool=True):
         return - (positive - 2*negative)
 
 
-def get_year_data(num_examples, model):
+def get_year_data_gpt2(num_examples, model):
     constants = GreaterThanConstants.get(model.cfg.device, tokenizer=model.tokenizer)
 
     template = "The {noun} lasted from the year {year1} to "
@@ -169,6 +174,47 @@ def get_year_data(num_examples, model):
 
     return prompts_tokenized, prompts
 
+def get_year_data_bert(num_examples, model):
+    tokenizer = model.tokenizer
+    constants = GreaterThanConstants.get(model.cfg.device, tokenizer=tokenizer)
+
+    template = "The {noun} lasted from the year {year1} to "
+
+    # set some random seed
+    torch.random.manual_seed(54)
+    nouns_perm = torch.randint(0, len(NOUNS), (num_examples,))
+    years_perm = torch.randint(0, len(constants.YEARS), (num_examples,))
+
+    prompts = []
+    prompts_tokenized = []
+    for i in range(num_examples):
+        year = constants.YEARS[years_perm[i]]
+        part1, part2 = year[:2], year[2:]
+
+        # Manually encode the parts and concatenate their token IDs
+        part1_token = tokenizer.encode(f" {part1}", add_special_tokens=False)
+        part2_token = tokenizer.encode(f"{part2}", add_special_tokens=False)
+
+        # Concatenate the token IDs for the year
+        year_tokens = part1_token + part2_token
+
+        # Create the prompt manually, inserting the tokenized year parts
+        prompt = template.format(noun=NOUNS[nouns_perm[i]], year1=year) + year[:2]
+        encoded_prompt = tokenizer.encode(prompt, return_tensors="pt", add_special_tokens=False).to(model.cfg.device)
+        
+        # Replace the manually encoded year in the prompt
+        full_prompt_tokenized = torch.cat((encoded_prompt[:, :-1], torch.tensor([year_tokens], dtype=torch.long).to(model.cfg.device), encoded_prompt[:, -1:]), dim=1)
+
+        prompts.append(prompt)
+        prompts_tokenized.append(full_prompt_tokenized)
+
+        assert prompts_tokenized[-1].shape == prompts_tokenized[0].shape, (prompts_tokenized[-1].shape, prompts_tokenized[0].shape)
+
+    prompts_tokenized = torch.cat(prompts_tokenized, dim=0)
+    assert len(prompts_tokenized.shape) == 2, prompts_tokenized.shape
+
+    return prompts_tokenized, prompts
+
 def get_finetuned_bert_model(model_name, device):
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer, head_type='classification') #, fold_ln=False)
@@ -183,12 +229,12 @@ def get_finetuned_bert_model(model_name, device):
 def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cuda"):
     if model_name == "gpt2_small":
         model = get_gpt2_small(device=device)
-        data, prompts = get_year_data(num_examples*2, model)
+        data, prompts = get_year_data_gpt2(num_examples*2, model)
         patch_data = data.clone()
         patch_data[:, 7] = 486  # replace with 01
     elif model_name == "andres-vs/bert-base-uncased-finetuned_Att-Noneg-depth0":
         model = get_finetuned_bert_model(model_name, device)
-        data, prompts = get_year_data(num_examples*2, model)
+        data, prompts = get_year_data_bert(num_examples*2, model)
         patch_data = data.clone()
         patch_data[:, 7] = 5890  # replace with 01
     else:
