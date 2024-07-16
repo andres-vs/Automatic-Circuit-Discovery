@@ -25,6 +25,7 @@ from typing import ClassVar, Optional
 
 import torch
 import torch.nn.functional as F
+import random
 
 
 from acdc.acdc_utils import kl_divergence, TorchIndex
@@ -175,49 +176,32 @@ def get_year_data_gpt2(num_examples, model):
     return prompts_tokenized, prompts
 
 def get_year_data_bert(num_examples, model):
-    tokenizer = model.tokenizer
-    constants = GreaterThanConstants.get(model.cfg.device, tokenizer=tokenizer)
+    template = "Between {integer} and [MASK], the latter is larger."
 
-    template = "The {noun} lasted from the year {year1} to "
-
-    # set some random seed
-    torch.random.manual_seed(54)
-    nouns_perm = torch.randint(0, len(NOUNS), (num_examples,))
-    years_perm = torch.randint(0, len(constants.YEARS), (num_examples,))
+    # # set some random seed
+    # torch.random.manual_seed(54)
+    # nouns_perm = torch.randint(0, len(NOUNS), (num_examples,))
+    # years_perm = torch.randint(0, len(INTEGERS), (num_examples,))
 
     prompts = []
     prompts_tokenized = []
-    for i in range(num_examples):
-        year = constants.YEARS[years_perm[i]]
-        part1, part2 = year[:2], year[2:]
-
-        # Manually encode the parts and concatenate their token IDs
-        part1_token = tokenizer.encode(f" {part1}", add_special_tokens=False)
-        part2_token = tokenizer.encode(f"{part2}", add_special_tokens=False)
-
-        # Concatenate the token IDs for the year
-        year_tokens = part1_token + part2_token
-
-        # Create the prompt manually, inserting the tokenized year parts
-        prompt = template.format(noun=NOUNS[nouns_perm[i]], year1=year) + year[:2]
-        encoded_prompt = tokenizer.encode(prompt, return_tensors="pt", add_special_tokens=False).to(model.cfg.device)
-        
-        # Replace the manually encoded year in the prompt
-        full_prompt_tokenized = torch.cat((encoded_prompt[:, :-1], torch.tensor([year_tokens], dtype=torch.long).to(model.cfg.device), encoded_prompt[:, -1:]), dim=1)
+    for _ in range(num_examples):
+        integer = random.randint(1, 98)
+        prompt = template.format(integer=integer)
 
         prompts.append(prompt)
-        prompts_tokenized.append(full_prompt_tokenized)
+        prompts_tokenized.append(model.tokenizer.encode(prompt, return_tensors="pt").to(model.cfg.device))
 
-        assert prompts_tokenized[-1].shape == prompts_tokenized[0].shape, (prompts_tokenized[-1].shape, prompts_tokenized[0].shape)
+        # assert prompts_tokenized[-1].shape == prompts_tokenized[0].shape, (prompts_tokenized[-1].shape, prompts_tokenized[0].shape)
 
     prompts_tokenized = torch.cat(prompts_tokenized, dim=0)
     assert len(prompts_tokenized.shape) == 2, prompts_tokenized.shape
 
     return prompts_tokenized, prompts
 
-def get_finetuned_bert_model(model_name, device):
+def get_bert_model(model_name, device):
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer, head_type='classification') #, fold_ln=False)
+    tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer, head_type='standard') #, fold_ln=False)
     tl_model = tl_model.to(device)
     tl_model.set_use_attn_result(True)
     tl_model.set_use_split_qkv_input(True)
@@ -227,16 +211,18 @@ def get_finetuned_bert_model(model_name, device):
     return tl_model
 
 def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cuda"):
-    if model_name == "gpt2_small":
+    if model_name == "gpt2":
         model = get_gpt2_small(device=device)
         data, prompts = get_year_data_gpt2(num_examples*2, model)
         patch_data = data.clone()
         patch_data[:, 7] = 486  # replace with 01
-    elif model_name == "andres-vs/bert-base-uncased-finetuned_Att-Noneg-depth0":
-        model = get_finetuned_bert_model(model_name, device)
+    elif model_name == "bert-base-cased":
+        model = get_bert_model(model_name, device)
         data, prompts = get_year_data_bert(num_examples*2, model)
+        print("data: ", data)
+        print("prompts: ", prompts)
         patch_data = data.clone()
-        patch_data[:, 7] = 5890  # replace with 01
+        patch_data[:, 4] = 121  # replace with 0
     else:
         raise ValueError(f"Unknown model {model_name}")
     
@@ -248,6 +234,12 @@ def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cu
     test_patch_data = patch_data[num_examples:]
 
     with torch.no_grad():
+        if model_name == "gpt2":
+            base_logits = model(data)[:, -1, :]
+            base_logprobs = F.log_softmax(base_logits, dim=-1)
+        if model_name == "bert-base-cased":
+            base_logits = model(data)[:, 4, :]
+            base_logprobs = F.log_softmax(base_logits, dim=-1)
         base_logits = model(data)[:, -1, :]
         base_logprobs = F.log_softmax(base_logits, dim=-1)
         base_validation_logprobs = base_logprobs[:num_examples]
