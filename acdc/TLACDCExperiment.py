@@ -212,11 +212,11 @@ class TLACDCExperiment:
         assert self.model.cfg.use_split_qkv_input, "Need to be able to see split by head QKV inputs"
 
     def update_cur_metric(self, recalc_metric=True, recalc_edges=True, initial=False):
-        print("Started updating cur metric")
+        # print("Started updating cur metric")
         if recalc_metric:
             batch_size = 5  # Set your desired batch size
             logits = []
-            start_time = time.time()
+            # start_time = time.time()
             for self.current_batch_index in range(0, len(self.ref_ds), batch_size):
                 batch = self.ds[self.current_batch_index : self.current_batch_index+batch_size]
                 with torch.no_grad():
@@ -225,8 +225,8 @@ class TLACDCExperiment:
                 del batch, batch_logits
                 gc.collect()
                 torch.cuda.empty_cache()
-                print("batch inference took", time.time() - start_time)
-                start_time = time.time()
+                # print("batch inference took", time.time() - start_time)
+                # start_time = time.time()
             logits = torch.cat(logits, dim=0)
             
             # logits = self.model(self.ds)
@@ -236,7 +236,7 @@ class TLACDCExperiment:
             # del logits
             # gc.collect()
             # torch.cuda.empty_cache()
-            print("finished recalc metric")
+            # print("finished recalc metric")
             
         if recalc_edges:
             self.cur_edges = self.count_no_edges()
