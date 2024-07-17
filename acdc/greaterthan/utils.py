@@ -236,11 +236,9 @@ def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cu
     with torch.no_grad():
         if model_name == "gpt2":
             base_logits = model(data)[:, -1, :]
-            base_logprobs = F.log_softmax(base_logits, dim=-1)
         if model_name == "bert-base-cased":
             base_logits = model(data)[:, 4, :]
-            base_logprobs = F.log_softmax(base_logits, dim=-1)
-        base_logits = model(data)[:, -1, :]
+        # base_logits = model(data)[:, -1, :]
         base_logprobs = F.log_softmax(base_logits, dim=-1)
         base_validation_logprobs = base_logprobs[:num_examples]
         base_test_logprobs = base_logprobs[num_examples:]
