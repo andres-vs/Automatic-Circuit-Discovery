@@ -200,7 +200,7 @@ def get_year_data_bert(num_examples, model):
     return prompts_tokenized, prompts
 
 def get_bert_model(model_name, device):
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
     tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer, head_type='standard') #, fold_ln=False)
     tl_model = tl_model.to(device)
     tl_model.set_use_attn_result(True)
@@ -222,7 +222,7 @@ def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cu
         print("data: ", data)
         print("prompts: ", prompts)
         patch_data = data.clone()
-        patch_data[:, 4] = 121  # replace with 0
+        patch_data[:, 2] = 121  # replace with 0
     else:
         raise ValueError(f"Unknown model {model_name}")
     
