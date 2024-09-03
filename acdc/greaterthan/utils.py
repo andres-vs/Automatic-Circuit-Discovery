@@ -250,7 +250,9 @@ def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cu
             kl_divergence,
             base_model_logprobs=base_validation_logprobs,
             mask_repeat_candidates=None,
-            last_seq_element_only=True,
+            last_seq_element_only=False,
+            specific_seq_element=4,
+            specific_seq_element_only=True,
         )
     else:
         raise ValueError(f"Unknown metric {metric_name}")
@@ -261,7 +263,9 @@ def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cu
             kl_divergence,
             base_model_logprobs=base_test_logprobs,
             mask_repeat_candidates=None,
-            last_seq_element_only=True,
+            last_seq_element_only=False,
+            specific_seq_element=4,
+            specific_seq_element_only=True,
         ),
     }
 

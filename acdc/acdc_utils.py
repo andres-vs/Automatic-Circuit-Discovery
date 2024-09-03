@@ -36,6 +36,8 @@ def kl_divergence(
     base_model_logprobs: torch.Tensor,
     mask_repeat_candidates: Optional[torch.Tensor] = None,
     last_seq_element_only: bool = True,
+    specific_seq_element_only: bool = False,
+    specific_seq_element: int = 0,
     base_model_probs_last_seq_element_only: bool = False,
     return_one_element: bool = True,
 ) -> torch.Tensor:
@@ -44,6 +46,8 @@ def kl_divergence(
 
     if last_seq_element_only:
         logits = logits[:, -1, :]
+    elif specific_seq_element_only:
+        logits = logits[:, specific_seq_element, :]
 
     if base_model_probs_last_seq_element_only:
         base_model_logprobs = base_model_logprobs[:, -1, :]
