@@ -246,28 +246,47 @@ def get_all_greaterthan_things(model_name, num_examples, metric_name, device="cu
     if metric_name == "greaterthan":
         validation_metric = partial(greaterthan_metric, tokens=validation_data.cpu())
     elif metric_name == "kl_div":
-        validation_metric = partial(
-            kl_divergence,
-            base_model_logprobs=base_validation_logprobs,
-            mask_repeat_candidates=None,
-            last_seq_element_only=False,
-            specific_seq_element=4,
-            specific_seq_element_only=True,
-        )
+        if model_name == "gpt2":
+            validation_metric = partial(
+                kl_divergence,
+                base_model_logprobs=base_validation_logprobs,
+                mask_repeat_candidates=None,
+                last_seq_element_only=True,
+            )
+        if model_name == "bert-base-cased":
+            validation_metric = partial(
+                kl_divergence,
+                base_model_logprobs=base_validation_logprobs,
+                mask_repeat_candidates=None,
+                last_seq_element_only=False,
+                specific_seq_element=4,
+                specific_seq_element_only=True,
+            )
     else:
         raise ValueError(f"Unknown metric {metric_name}")
 
-    test_metrics = {
-        "greaterthan": partial(greaterthan_metric, tokens=test_data.cpu()),
-        "kl_div": partial(
-            kl_divergence,
-            base_model_logprobs=base_test_logprobs,
-            mask_repeat_candidates=None,
-            last_seq_element_only=False,
-            specific_seq_element=4,
-            specific_seq_element_only=True,
-        ),
-    }
+    if model_name == "gpt2":
+        test_metrics = {
+            "greaterthan": partial(greaterthan_metric, tokens=test_data.cpu()),
+            "kl_div": partial(
+                kl_divergence,
+                base_model_logprobs=base_test_logprobs,
+                mask_repeat_candidates=None,
+                last_seq_element_only=True,
+            ),
+        }
+    if model_name == "bert-base-cased":
+        test_metrics = {
+            "greaterthan": partial(greaterthan_metric, tokens=test_data.cpu()),
+            "kl_div": partial(
+                kl_divergence,
+                base_model_logprobs=base_test_logprobs,
+                mask_repeat_candidates=None,
+                last_seq_element_only=False,
+                specific_seq_element=4,
+                specific_seq_element_only=True,
+            ),
+        }
 
     return AllDataThings(
         tl_model=model,
