@@ -201,7 +201,7 @@ def get_year_data_bert(num_examples, model):
 
 def get_bert_model(model_name, device):
     tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
-    tl_model = HookedEncoder.from_pretrained(model_name, tokenizer=tokenizer, head_type='standard') #, fold_ln=False)
+    tl_model = HookedEncoder.from_pretrained(model_name=model_name, tokenizer=tokenizer) #, fold_ln=False)
     tl_model = tl_model.to(device)
     tl_model.set_use_attn_result(True)
     tl_model.set_use_split_qkv_input(True)

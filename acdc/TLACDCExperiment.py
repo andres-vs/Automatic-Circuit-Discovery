@@ -522,7 +522,7 @@ class TLACDCExperiment:
             del batch, batch_corrupt_stuff
             gc.collect()
             torch.cuda.empty_cache()
-        print("Corrupted cache batched shape", self.global_cache.corrupted_cache["blocks.11.hook_mlp_out"].shape)
+        # print("Corrupted cache batched shape", self.global_cache.corrupted_cache["blocks.11.hook_mlp_out"].shape)
         # print("Corrupted cache", self.global_cache.corrupted_cache)
         print("Mem after forward pass", torch.cuda.memory_allocated())
         del self.temp_global_cache
