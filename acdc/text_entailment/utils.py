@@ -7,7 +7,7 @@ from transformer_lens.HookedEncoder import HookedEncoder
 from transformers import AutoTokenizer
 
 from huggingface_hub import login
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset, concatenate_datasets, Dataset
 import random
 from datasets import Dataset
 from tqdm import tqdm
@@ -88,6 +88,37 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
 
     corrupted_validation_examples = generate_corrupt_examples(validation_examples)
     corrupted_test_examples = generate_corrupt_examples(test_examples)
+
+    # Concatenate normal and corrupted examples for validation and test sets
+    combined_validation_examples = concatenate_datasets([validation_examples, corrupted_validation_examples])
+    combined_test_examples = concatenate_datasets([test_examples, corrupted_test_examples])
+
+    # Tokenize the combined datasets
+    tokenized_combined_validation = tokenize_function(tl_model.tokenizer, combined_validation_examples, padding='max_length' if max_length else 'longest')
+    tokenized_combined_test = tokenize_function(tl_model.tokenizer, combined_test_examples, padding='max_length' if max_length else 'longest')
+
+    # Split the tokenized outputs back into normal and corrupted examples
+    tokenized_validation = {
+        "input_ids": tokenized_combined_validation["input_ids"][:num_examples],
+        "attention_mask": tokenized_combined_validation["attention_mask"][:num_examples],
+        "label": tokenized_combined_validation["label"][:num_examples]
+    }
+    tokenized_corrupted_validation = {
+        "input_ids": tokenized_combined_validation["input_ids"][num_examples:],
+        "attention_mask": tokenized_combined_validation["attention_mask"][num_examples:],
+        "label": tokenized_combined_validation["label"][num_examples:]
+    }
+
+    tokenized_test = {
+        "input_ids": tokenized_combined_test["input_ids"][:num_examples],
+        "attention_mask": tokenized_combined_test["attention_mask"][:num_examples],
+        "label": tokenized_combined_test["label"][:num_examples]
+    }
+    tokenized_corrupted_test = {
+        "input_ids": tokenized_combined_test["input_ids"][num_examples:],
+        "attention_mask": tokenized_combined_test["attention_mask"][num_examples:],
+        "label": tokenized_combined_test["label"][num_examples:]
+    }
 
     tokenized_validation = tokenize_function(tl_model.tokenizer, validation_examples, padding='max_length' if max_length else True)
     tokenized_corrupted_validation = tokenize_function(tl_model.tokenizer, corrupted_validation_examples, padding='max_length' if max_length else True)
