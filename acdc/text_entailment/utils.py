@@ -74,7 +74,7 @@ def generate_corrupt_examples(examples):
     return Dataset.from_dict({'input': inputs, 'label': labels})
 
 
-def get_all_text_entailment_things(model_name, test_dataset, num_examples, device, metric_name, kl_return_one_element=True, max_length=False):
+def get_all_text_entailment_things(model_name, test_dataset, num_examples, device, metric_name, kl_return_one_element=True, max_length=None):
     tl_model = get_finetuned_bert_model(model_name, device)
 
     if len(test_dataset) < 2 * num_examples:
@@ -94,22 +94,22 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
     tokenized_test = tokenize_function(tl_model.tokenizer, test_examples, padding='max_length' if max_length else True)
     tokenized_corrupted_test = tokenize_function(tl_model.tokenizer, corrupted_test_examples, padding='max_length' if max_length else True)
 
-    validation_data = torch.tensor(tokenized_validation["input_ids"])
-    validation_mask = torch.tensor(tokenized_validation["attention_mask"])
-    validation_patch_data = torch.tensor(tokenized_corrupted_validation["input_ids"])
+    validation_data = tokenized_validation["input_ids"]
+    validation_mask = tokenized_validation["attention_mask"]
+    validation_patch_data = tokenized_corrupted_validation["input_ids"]
     validation_labels = validation_examples["label"]
 
-    test_data = torch.tensor(tokenized_test["input_ids"])
-    test_mask = torch.tensor(tokenized_test["attention_mask"])
-    test_patch_data = torch.tensor(tokenized_corrupted_test["input_ids"])
+    test_data = tokenized_test["input_ids"]
+    test_mask = tokenized_test["attention_mask"]
+    test_patch_data = tokenized_corrupted_test["input_ids"]
     test_labels = test_examples["label"]
 
     batch_size = 8
     base_model_logits = []
     for i in tqdm(range(0, len(tokenized_validation["input_ids"]), batch_size)):
         batch_inputs = {
-            "input_ids": torch.tensor(tokenized_validation["input_ids"][i:i+batch_size]),
-            "attention_mask": torch.tensor(tokenized_validation["attention_mask"][i:i+batch_size])
+            "input_ids": tokenized_validation["input_ids"][i:i+batch_size],
+            "attention_mask": tokenized_validation["attention_mask"][i:i+batch_size]
         }
 
         with torch.no_grad():
@@ -122,8 +122,8 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
 
     for i in tqdm(range(0, len(tokenized_test["input_ids"]), batch_size)):
         batch_inputs = {
-            "input_ids": torch.tensor(tokenized_test["input_ids"][i:i+batch_size]),
-            "attention_mask": torch.tensor(tokenized_test["attention_mask"][i:i+batch_size])
+            "input_ids": tokenized_test["input_ids"][i:i+batch_size],
+            "attention_mask": tokenized_test["attention_mask"][i:i+batch_size]
         }
 
         with torch.no_grad():
