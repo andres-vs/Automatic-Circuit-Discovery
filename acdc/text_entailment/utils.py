@@ -58,11 +58,9 @@ def generate_corrupt_examples(examples):
         labels.append(not example['label'])
     return Dataset.from_dict({'input': inputs, 'label': labels})
 
-def get_all_text_entailment_things(model_name, num_examples, device, metric_name, kl_return_one_element=True):
+def get_all_text_entailment_things(model_name, dataset_name, num_examples, device, metric_name, kl_return_one_element=True, max_length=False):
     tl_model=get_finetuned_bert_model(model_name, device)
-
-    login(token="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", add_to_git_credential=True)
-    dataset_name = "andres-vs/ruletaker-Att-Noneg-depth0"
+    # dataset_name = "andres-vs/ruletaker-Att-Noneg-depth0"
 
     dataset = load_dataset(dataset_name)
     test_size = len(dataset["test"])
@@ -76,7 +74,7 @@ def get_all_text_entailment_things(model_name, num_examples, device, metric_name
     corrupted_examples = generate_corrupt_examples(examples)
     all_examples = concatenate_datasets([examples, corrupted_examples])
 
-    tokenized_all = tokenize_function(tl_model.tokenizer, all_examples, padding=True)
+    tokenized_all = tokenize_function(tl_model.tokenizer, all_examples, padding='max_length' if max_length else True)#, max_length=512 if max_length else None)
     tokenized_examples = {
         "input_ids": tokenized_all["input_ids"][:num_examples*2],
         "attention_mask": tokenized_all["attention_mask"][:num_examples*2]
