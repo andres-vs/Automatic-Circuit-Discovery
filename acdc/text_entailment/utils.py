@@ -58,83 +58,79 @@ def generate_corrupt_examples(examples):
         labels.append(not example['label'])
     return Dataset.from_dict({'input': inputs, 'label': labels})
 
-def get_all_text_entailment_things(model_name, dataset_name, num_examples, device, metric_name, kl_return_one_element=True, max_length=False):
-    tl_model=get_finetuned_bert_model(model_name, device)
-    # dataset_name = "andres-vs/ruletaker-Att-Noneg-depth0"
 
-    dataset = load_dataset(dataset_name)
-    test_size = len(dataset["test"])
-    if num_examples*2 < test_size:
-        # examples = dataset["test"].select(random.sample(range(test_size), num_examples*2))
-        examples = dataset["test"].select(range(num_examples*2))
-    else:
-        raise ValueError("num_examples cannot exceed half of the test split size.")
+def get_all_text_entailment_things(model_name, validation_examples, test_examples, device, metric_name, kl_return_one_element=True, max_length=False):
+    tl_model = get_finetuned_bert_model(model_name, device)
+
+    if len(validation_examples) != len(test_examples):
+        raise ValueError("The number of validation examples must be equal to the number of test examples.")
     
-    examples = examples.map(remove_special_tokens)
-    corrupted_examples = generate_corrupt_examples(examples)
-    all_examples = concatenate_datasets([examples, corrupted_examples])
+    num_examples = len(validation_examples)
 
-    tokenized_all = tokenize_function(tl_model.tokenizer, all_examples, padding='max_length' if max_length else True)#, max_length=512 if max_length else None)
-    tokenized_examples = {
-        "input_ids": tokenized_all["input_ids"][:num_examples*2],
-        "attention_mask": tokenized_all["attention_mask"][:num_examples*2]
+    validation_examples = validation_examples.map(remove_special_tokens)
+    test_examples = test_examples.map(remove_special_tokens)
+    
+    corrupted_validation_examples = generate_corrupt_examples(validation_examples)
+    corrupted_test_examples = generate_corrupt_examples(test_examples)
+    
+    tokenized_validation = tokenize_function(tl_model.tokenizer, validation_examples, padding='max_length' if max_length else True)
+    tokenized_corrupted_validation = tokenize_function(tl_model.tokenizer, corrupted_validation_examples, padding='max_length' if max_length else True)
+    tokenized_test = tokenize_function(tl_model.tokenizer, test_examples, padding='max_length' if max_length else True)
+    tokenized_corrupted_test = tokenize_function(tl_model.tokenizer, corrupted_test_examples, padding='max_length' if max_length else True)
+
+    tokenized_validation_examples = {
+        "input_ids": tokenized_validation["input_ids"][:num_examples*2],
+        "attention_mask": tokenized_validation["attention_mask"][:num_examples*2]
     }
-    tokenized_corrupted_examples = {
-        "input_ids": tokenized_all["input_ids"][num_examples*2:],
-        "attention_mask": tokenized_all["attention_mask"][num_examples*2:]
+    tokenized_corrupted_validation_examples = {
+        "input_ids": tokenized_validation["input_ids"][num_examples*2:],
+        "attention_mask": tokenized_validation["attention_mask"][num_examples*2:]
     }
 
-    validation_data = torch.tensor(tokenized_examples["input_ids"][:num_examples])
-    valdiation_mask = torch.tensor(tokenized_examples["attention_mask"][:num_examples])
-    validation_patch_data = torch.tensor(tokenized_corrupted_examples["input_ids"][:num_examples])
-    validation_labels = examples[:num_examples]["label"]
-    test_data = torch.tensor(tokenized_examples["input_ids"][num_examples:])
-    test_mask = torch.tensor(tokenized_examples["attention_mask"][num_examples:])
-    test_patch_data = torch.tensor(tokenized_corrupted_examples["input_ids"][num_examples:])
-    test_labels = examples[num_examples:]["label"]
+    tokenized_test_examples = {
+        "input_ids": tokenized_test["input_ids"][:num_examples*2],
+        "attention_mask": tokenized_test["attention_mask"][:num_examples*2]
+    }
+    tokenized_corrupted_test_examples = {
+        "input_ids": tokenized_test["input_ids"][num_examples*2:],
+        "attention_mask": tokenized_test["attention_mask"][num_examples*2:]
+    }
 
+    validation_data = torch.tensor(tokenized_validation_examples["input_ids"][:num_examples])
+    validation_mask = torch.tensor(tokenized_validation_examples["attention_mask"][:num_examples])
+    validation_patch_data = torch.tensor(tokenized_corrupted_validation_examples["input_ids"][:num_examples])
+    validation_labels = validation_examples[:num_examples]["label"]
+    
+    test_data = torch.tensor(tokenized_test_examples["input_ids"][:num_examples])
+    test_mask = torch.tensor(tokenized_test_examples["attention_mask"][:num_examples])
+    test_patch_data = torch.tensor(tokenized_corrupted_test_examples["input_ids"][:num_examples])
+    test_labels = test_examples[:num_examples]["label"]
 
     batch_size = 8
     base_model_logits = []
-    # print(-1, torch.cuda.memory_allocated())
-    for i in tqdm(range(0, len(tokenized_examples["input_ids"]), batch_size)):
+    for i in tqdm(range(0, len(tokenized_validation_examples["input_ids"]), batch_size)):
         batch_inputs = {
-            "input_ids": torch.tensor(tokenized_examples["input_ids"][i:i+batch_size]),
-            "attention_mask": torch.tensor(tokenized_examples["attention_mask"][i:i+batch_size])
+            "input_ids": torch.tensor(tokenized_validation_examples["input_ids"][i:i+batch_size]),
+            "attention_mask": torch.tensor(tokenized_validation_examples["attention_mask"][i:i+batch_size])
         }
-        # print(i, "batch_inputs", torch.cuda.memory_allocated())
-        # batch_inputs_size = batch_inputs['input_ids'].element_size() * batch_inputs['input_ids'].nelement() / (1024 * 1024 * 1024)
         
         with torch.no_grad():
             logits = tl_model(input=batch_inputs['input_ids'], one_zero_attention_mask=batch_inputs['attention_mask'])
-        # print(i, "logits", torch.cuda.memory_allocated())
-        # print(logits.shape)
-        # print(logits)
+        
         base_model_logits.append(logits)
-        # print(i, "appended", torch.cuda.memory_allocated())
         del batch_inputs["input_ids"], batch_inputs["attention_mask"], batch_inputs
         del logits
         torch.cuda.empty_cache()
-        # print(i, "deleted", torch.cuda.memory_allocated())
-        # wait = input("(iteration done) Press Enter to continue.")
-    # wait = input("(calculated base model logits) Press Enter to continue.")
-    # print(len(base_model_logits))
-    # print(base_model_logits)
+    
     base_model_logits = torch.cat(base_model_logits, dim=0)
-    # print(base_model_logits.size())
-    # print("base_model_logits", base_model_logits)
-    # wait = input("(recalculated base model logprobs) Press Enter to continue.")
     base_model_logprobs = F.log_softmax(base_model_logits, dim=-1)
-    # print("base_model_logprobs", base_model_logprobs)
-    # wait = input("(calculated base model logprobs) Press Enter to continue.")
+    
     base_validation_logprobs = base_model_logprobs[:num_examples, :]
     base_test_logprobs = base_model_logprobs[num_examples:, :]
-    # print(base_validation_logprobs.size(), base_test_logprobs.size())
-    # wait = input("(derived validation and test logprobs) Press Enter to continue.")
+    
     del base_model_logits
     del base_model_logprobs
     torch.cuda.empty_cache()
-    # wait = input("(deleted logits and logprob vars) Press Enter to continue.")
 
     if metric_name == "kl_div":
         validation_metric = partial(
@@ -161,7 +157,7 @@ def get_all_text_entailment_things(model_name, dataset_name, num_examples, devic
         validation_metric=validation_metric,
         validation_data=validation_data,
         validation_labels=validation_labels,
-        validation_mask=valdiation_mask,
+        validation_mask=validation_mask,
         validation_patch_data=validation_patch_data,
         test_metrics=test_metrics,
         test_data=test_data,
