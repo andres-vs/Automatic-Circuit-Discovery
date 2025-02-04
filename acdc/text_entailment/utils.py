@@ -70,7 +70,7 @@ def generate_corrupt_examples(examples):
             else:
                 theory = theory + ' ' + query
         inputs.append(theory + '[SEP]' + query)
-        labels.append(not example['label'])
+        labels.append(int(not example['label']))
     return Dataset.from_dict({'input': inputs, 'label': labels})
 
 
