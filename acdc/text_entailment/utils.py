@@ -120,10 +120,10 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
         "label": tokenized_combined_test["label"][num_examples:]
     }
 
-    tokenized_validation = tokenize_function(tl_model.tokenizer, validation_examples, padding='max_length' if max_length else True)
-    tokenized_corrupted_validation = tokenize_function(tl_model.tokenizer, corrupted_validation_examples, padding='max_length' if max_length else True)
-    tokenized_test = tokenize_function(tl_model.tokenizer, test_examples, padding='max_length' if max_length else True)
-    tokenized_corrupted_test = tokenize_function(tl_model.tokenizer, corrupted_test_examples, padding='max_length' if max_length else True)
+    # tokenized_validation = tokenize_function(tl_model.tokenizer, validation_examples, padding='max_length' if max_length else True)
+    # tokenized_corrupted_validation = tokenize_function(tl_model.tokenizer, corrupted_validation_examples, padding='max_length' if max_length else True)
+    # tokenized_test = tokenize_function(tl_model.tokenizer, test_examples, padding='max_length' if max_length else True)
+    # tokenized_corrupted_test = tokenize_function(tl_model.tokenizer, corrupted_test_examples, padding='max_length' if max_length else True)
 
     validation_data = tokenized_validation["input_ids"]
     validation_mask = tokenized_validation["attention_mask"]
