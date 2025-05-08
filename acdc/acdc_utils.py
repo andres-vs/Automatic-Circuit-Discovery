@@ -167,6 +167,12 @@ def frac_correct_metric(logits, correct_labels, wrong_labels, return_one_element
     else:
         return -(correct_logits > incorrect_logits).float().view(-1)
 
+def abs_logit_diff_diff_metric(logits, base_model_logits, return_one_element: bool=True) -> torch.Tensor:
+    if return_one_element:
+        return abs((base_model_logits[:, -1, 0] - base_model_logits[:, -1, 1]) - (logits[:, -1, 0] - logits[:, -1, 1])).mean()
+    else:
+        return abs((base_model_logits[:, -1, 0] - base_model_logits[:, -1, 1]) - (logits[:, -1, 0] - logits[:, -1, 1])).view(-1)
+
 # -----------
 # Utils of secondary importance
 # -----------
