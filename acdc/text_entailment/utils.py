@@ -1,6 +1,6 @@
 from functools import partial
 from acdc.docstring.utils import AllDataThings
-from acdc.acdc_utils import kl_divergence
+from acdc.acdc_utils import kl_divergence, logit_diff_metric
 import torch
 import torch.nn.functional as F
 from transformer_lens.HookedEncoder import HookedEncoder
@@ -999,11 +999,13 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
     validation_mask = tokenized_validation["attention_mask"]
     validation_patch_data = tokenized_corrupted_validation["input_ids"]
     validation_labels = validation_examples["label"]
+    validation_wrong_labels = corrupted_validation_examples["label"]
 
     test_data = tokenized_test["input_ids"]
     test_mask = tokenized_test["attention_mask"]
     test_patch_data = tokenized_corrupted_test["input_ids"]
     test_labels = test_examples["label"]
+    test_wrong_labels = corrupted_test_examples["label"]
 
     batch_size = 8
     base_model_logits = []
@@ -1053,6 +1055,12 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
             base_model_probs_last_seq_element_only=False,
             return_one_element=kl_return_one_element,
         )
+    elif metric_name == "logit_diff":
+        validation_metric = partial(
+            logit_diff_metric,
+            correct_labels=validation_labels,
+            wrong_labels=validation_wrong_labels,
+        ) 
     else:
         raise ValueError(f"Unknown metric {metric_name}")
 
@@ -1062,6 +1070,11 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
             base_model_logprobs=base_test_logprobs,
             mask_repeat_candidates=None,
             last_seq_element_only=False,
+        ),
+        "logit_diff": partial(
+            logit_diff_metric,
+            correct_labels=test_labels,
+            wrong_labels=test_wrong_labels,
         ),
     }
 
