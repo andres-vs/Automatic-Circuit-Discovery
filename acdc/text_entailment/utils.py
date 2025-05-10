@@ -1,6 +1,6 @@
 from functools import partial
 from acdc.docstring.utils import AllDataThings
-from acdc.acdc_utils import kl_divergence, logit_diff_metric
+from acdc.acdc_utils import kl_divergence, custom_logit_diff_metric
 import torch
 import torch.nn.functional as F
 from transformer_lens.HookedEncoder import HookedEncoder
@@ -1055,9 +1055,9 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
             base_model_probs_last_seq_element_only=False,
             return_one_element=kl_return_one_element,
         )
-    elif metric_name == "logit_diff":
+    elif metric_name == "custom_logit_diff":
         validation_metric = partial(
-            logit_diff_metric,
+            custom_logit_diff_metric,
             correct_labels=validation_labels,
             wrong_labels=validation_wrong_labels,
         ) 
@@ -1071,8 +1071,8 @@ def get_all_text_entailment_things(model_name, test_dataset, num_examples, devic
             mask_repeat_candidates=None,
             last_seq_element_only=False,
         ),
-        "logit_diff": partial(
-            logit_diff_metric,
+        "custom_logit_diff": partial(
+            custom_logit_diff_metric,
             correct_labels=test_labels,
             wrong_labels=test_wrong_labels,
         ),
