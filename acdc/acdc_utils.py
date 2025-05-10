@@ -155,6 +155,24 @@ def logit_diff_metric(logits, correct_labels, wrong_labels, return_one_element: 
         return -(correct_logits.mean() - incorrect_logits.mean())
     else:
         return -(correct_logits - incorrect_logits).view(-1)
+    
+def custom_logit_diff_metric(logits, correct_labels, wrong_labels, return_one_element: bool=True) -> torch.Tensor:
+    """
+    Calculates the difference between the logits of the correct and incorrect labels.
+    :param logits: The logits output by the model. Shape: (batch_size, num_classes)
+    :param correct_labels: The correct labels for the batch. Shape: (batch_size,)
+    :param wrong_labels: The incorrect labels for the batch. Shape: (batch_size,)
+    :param return_one_element: Whether to return a single value (the mean difference) or a tensor of differences.
+    :return: The difference between the logits of the correct and incorrect labels.
+    """
+    range = torch.arange(len(logits))
+
+    # Updated indexing to work with 2D logits
+    correct_logits = logits[range, correct_labels] 
+    incorrect_logits = logits[range, wrong_labels]
+
+    diff = correct_logits - incorrect_logits
+    return diff.mean() if return_one_element else diff
 
 def frac_correct_metric(logits, correct_labels, wrong_labels, return_one_element: bool=True) -> torch.Tensor:
     range = torch.arange(len(logits))
