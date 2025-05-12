@@ -155,6 +155,37 @@ def logit_diff_metric(logits, correct_labels, wrong_labels, return_one_element: 
         return -(correct_logits.mean() - incorrect_logits.mean())
     else:
         return -(correct_logits - incorrect_logits).view(-1)
+
+def logit_diff_metric_entailment(
+    logits: torch.Tensor,
+    correct_labels: torch.Tensor,   # tensor of 0 (False) or 1 (True)
+    wrong_labels:   torch.Tensor,   # tensor of 1 - correct_labels
+    return_one_element: bool = True
+    ) -> torch.Tensor:
+    """
+    Signed logit-difference metric for binary textual-entailment,
+    matching the API of Conmy et al.'s function.
+    
+    logits           shape (B, 2)  or (B, 1, 2)
+    correct_labels   shape (B,)    values 0 / 1
+    wrong_labels     shape (B,)    values 1 / 0
+    """
+    # if a dummy sequence dimension is present, squeeze it
+    if logits.dim() == 3:
+        logits = logits[:, -1, :]      # keep last position only
+    
+    # gather logits
+    batch_idx = torch.arange(logits.size(0), device=logits.device)
+    correct_logits   = logits[batch_idx, correct_labels]
+    incorrect_logits = logits[batch_idx, wrong_labels]
+    
+    # negative sign so lower is "better" (loss‐style)
+    diff = -(correct_logits - incorrect_logits)
+    
+    if return_one_element:
+        return diff.mean()             # scalar for back-prop
+    else:
+        return diff.view(-1)           # per-example vector
     
 def custom_logit_diff_metric(logits, correct_labels, wrong_labels, return_one_element: bool=True) -> torch.Tensor:
     """
@@ -166,8 +197,21 @@ def custom_logit_diff_metric(logits, correct_labels, wrong_labels, return_one_el
     :return: The difference between the logits of the correct and incorrect labels.
     """
     range = torch.arange(len(logits))
-
-    # Updated indexing to work with 2D logits
+    
+    # Convert labels to tensor if they aren't already
+    if not isinstance(correct_labels, torch.Tensor):
+        correct_labels = torch.tensor(correct_labels, device=logits.device)
+    if not isinstance(wrong_labels, torch.Tensor):
+        wrong_labels = torch.tensor(wrong_labels, device=logits.device)
+        
+    # Ensure labels are the right shape and type
+    correct_labels = correct_labels.long().view(-1)
+    wrong_labels = wrong_labels.long().view(-1)
+    
+    # Make sure the labels match the batch size
+    assert len(correct_labels) == len(logits), f"Label count {len(correct_labels)} doesn't match batch size {len(logits)}"
+    
+    # Now do the indexing
     correct_logits = logits[range, correct_labels] 
     incorrect_logits = logits[range, wrong_labels]
 
