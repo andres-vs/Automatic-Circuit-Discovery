@@ -148,7 +148,11 @@ def generate_corrupt_examples(examples):
                 raise ValueError(f"Unknown proof strategy: {example['proof_strategy']}")
             inputs.append(theory + '[SEP]' + str(query))
             labels.append(not example['label'])
-    
+
+        elif example['depth'] > 2:
+            inputs.append(input_text)
+            labels.append(example['label'])
+
     return Dataset.from_dict({'input': inputs, 'label': labels})
 
 def generate_dummy_fact(rules, facts, query, theory_index=None):
