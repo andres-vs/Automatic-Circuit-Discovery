@@ -156,38 +156,38 @@ def logit_diff_metric(logits, correct_labels, wrong_labels, return_one_element: 
     else:
         return -(correct_logits - incorrect_logits).view(-1)
 
-def logit_diff_metric_entailment(
-    logits: torch.Tensor,
-    correct_labels: torch.Tensor,   # tensor of 0 (False) or 1 (True)
-    wrong_labels:   torch.Tensor,   # tensor of 1 - correct_labels
-    return_one_element: bool = True
-    ) -> torch.Tensor:
-    """
-    Signed logit-difference metric for binary textual-entailment,
-    matching the API of Conmy et al.'s function.
+# def logit_diff_metric_entailment(
+#     logits: torch.Tensor,
+#     correct_labels: torch.Tensor,   # tensor of 0 (False) or 1 (True)
+#     wrong_labels:   torch.Tensor,   # tensor of 1 - correct_labels
+#     return_one_element: bool = True
+#     ) -> torch.Tensor:
+#     """
+#     Signed logit-difference metric for binary textual-entailment,
+#     matching the API of Conmy et al.'s function.
     
-    logits           shape (B, 2)  or (B, 1, 2)
-    correct_labels   shape (B,)    values 0 / 1
-    wrong_labels     shape (B,)    values 1 / 0
-    """
-    # if a dummy sequence dimension is present, squeeze it
-    if logits.dim() == 3:
-        logits = logits[:, -1, :]      # keep last position only
+#     logits           shape (B, 2)  or (B, 1, 2)
+#     correct_labels   shape (B,)    values 0 / 1
+#     wrong_labels     shape (B,)    values 1 / 0
+#     """
+#     # if a dummy sequence dimension is present, squeeze it
+#     if logits.dim() == 3:
+#         logits = logits[:, -1, :]      # keep last position only
     
-    # gather logits
-    batch_idx = torch.arange(logits.size(0), device=logits.device)
-    correct_logits   = logits[batch_idx, correct_labels]
-    incorrect_logits = logits[batch_idx, wrong_labels]
+#     # gather logits
+#     batch_idx = torch.arange(logits.size(0), device=logits.device)
+#     correct_logits   = logits[batch_idx, correct_labels]
+#     incorrect_logits = logits[batch_idx, wrong_labels]
     
-    # negative sign so lower is "better" (loss‐style)
-    diff = -(correct_logits - incorrect_logits)
+#     # negative sign so lower is "better" (loss‐style)
+#     diff = -(correct_logits - incorrect_logits)
     
-    if return_one_element:
-        return diff.mean()             # scalar for back-prop
-    else:
-        return diff.view(-1)           # per-example vector
+#     if return_one_element:
+#         return diff.mean()             # scalar for back-prop
+#     else:
+#         return diff.view(-1)           # per-example vector
     
-def custom_logit_diff_metric(logits, correct_labels, wrong_labels, return_one_element: bool=True) -> torch.Tensor:
+def custom_logit_diff_metric_entailment(logits, correct_labels, wrong_labels, return_one_element: bool=True) -> torch.Tensor:
     """
     Calculates the difference between the logits of the correct and incorrect labels.
     :param logits: The logits output by the model. Shape: (batch_size, num_classes)
