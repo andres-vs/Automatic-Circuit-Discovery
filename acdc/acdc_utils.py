@@ -215,7 +215,8 @@ def custom_logit_diff_metric_entailment(logits, correct_labels, wrong_labels, re
     correct_logits = logits[range, correct_labels] 
     incorrect_logits = logits[range, wrong_labels]
 
-    diff = correct_logits - incorrect_logits
+    # Negate the difference so we also minimize
+    diff = -(correct_logits - incorrect_logits)
     return diff.mean() if return_one_element else diff
 
 def frac_correct_metric(logits, correct_labels, wrong_labels, return_one_element: bool=True) -> torch.Tensor:
